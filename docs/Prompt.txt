@@ -1,0 +1,7 @@
+đây là thông tin tôi đã trao đổi từ một chat khác, vì 2 file tài liệu gốc là pdf, model hiện tại không thể đọc nên tôi đã tạo ra 2 file md raw convert.
+yêu cầu là tôi muốn tài liệu mô tả, ý tưởng hiện tại chỉ gồm 3 tài liệu là infrastructure, domain và module.
+giải thích thì tài liệu về infrastructure sẽ mô tả xây dựng theo hướng lập trình, kiến trúc nào, với hướng đó thì đối tượng hoặc hàm nên như nào, có cụ thể gì, sẽ làm gì, input-output, ...
+tài liệu về domain thì như trong Chat.md, nó là về tổng thể thuật nên có gì, chạy như nào, các yêu cầu cơ bản.
+tài liệu về module sẽ nói về triễn khai trong một bối cảnh cụ thể (hiện tại chưa cần)
+sau này sẽ có một tài liệu để nói cụ thể về java và theo hướng lạp trình OOP(hiện tại cũng chưa cần).
+hiện tại hãy làm domain trước, sau đó thử xem làm infrastructure theo hướng OOP.
