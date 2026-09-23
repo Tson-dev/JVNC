@@ -1,6 +1,6 @@
 # DHOPM/DOPM – Tổng thể Kế hoạch Triển khai (3 Phiên bản)
 
-> Kế hoạch tổng thể cho phép phát triển **3 phiên bản** của hệ thống khai phá mẫu chiếm dụng cao có suy giảm (DHOPM/DOPM) bằng **Java 17**, với yêu cầu bắt buộc **Thread + worker** để tối ưu CPU, và **kết quả của 3 phiên bản phải trùng khớp nhau**.
+> Kế hoạch tổng thể cho phép phát triển **3 phiên bản** của hệ thống khai phá mẫu chiếm dụng cao có suy giảm (DHOPM/DOPM) bằng **Java 25**, với yêu cầu bắt buộc **Thread + worker** để tối ưu CPU, và **kết quả của 3 phiên bản phải trùng khớp nhau**.
 >
 > Đây là tài liệu gốc (source of truth) cho toàn bộ nỗ lực: định nghĩa **chuẩn hóa thuật toán**, khung threading dùng chung, cấu trúc dự án, bộ test nghiệm thu, và lộ trình triển khai.
 
@@ -14,8 +14,8 @@
 | **Document ID** | DHOPM-PLAN-000 |
 | **Version** | 1.0 (Draft) |
 | **Status** | Draft – chờ review |
-| **Source Documents** | [1] Paper gốc: `docs/root/1-s2_0-S095219762600792X-main.md`<br/>[2] Ví dụ chạy tay + TC1–TC8: `docs/root/Nhom01_VDChayTay.md`<br/>[3] Tham khảo (KHÔNG phải mốc): 3 tài liệu design cũ dưới `docs/` |
-| **Ngôn ngữ triển khai** | Java 17 (LTS) |
+| **Source Documents** | [1] Paper gốc: `docs/root/1-s2_0-S095219762600792X-main.md`<br/>[2] Ví dụ chạy tay + TC1–TC8: `docs/root/Nhom01_VDChayTay.md`<br/>[3] Tài liệu draft cũ (3 design + `Default Project/` + `draft/`) đã **lưu trữ trên branch `archive/legacy-draft`** — tham khảo, KHÔNG phải mốc |
+| **Ngôn ngữ triển khai** | Java 25 (LTS) |
 | **Môi trường** | Windows (win32), kiến trúc hiện tại của máy dev |
 
 ### Revision History
@@ -24,6 +24,7 @@
 |---|---|
 | 1.0 | Khởi tạo: chuẩn hóa thuật toán, khung threading, cấu trúc dự án, lộ trình 3 phiên bản |
 | 1.1 | Cập nhật dataset cục bộ (7 file FIMI, khớp benchmark); bổ sung cấu trúc Tài liệu & Workflow (SRS tổng thể, UI Layout, tài liệu riêng từng project engine, plan riêng từng giai đoạn), thêm giai đoạn G4 debug/compare app |
+| 1.2 | **Java 25** thay Java 17; chuyển toàn bộ tài liệu draft cũ (3 design, `Default Project/`, `draft/`) sang **branch `archive/legacy-draft`** và xóa khỏi main (ghi chú tại đây); V1 áp dụng **GoF**, V2 cân nhắc **cấu trúc vượt GoF** (không có thì theo plan), V3 không cần pattern; mỗi giai đoạn sản xuất **tài liệu cấu trúc & design từng thành phần/hàm** (V2/V3 kèm lý do chọn tối ưu + so V1); app = **3 module engine + UI module riêng**, chọn **≥1 engine** để so sánh, util chung (benchmark/thread/worker) chia sẻ cho cả 3, log/benchmark **độc lập với thuật toán** |
 
 ---
 
@@ -47,7 +48,7 @@ Phát triển **một hệ thống gồm 3 project engine** (3 phiên bản DHOP
 ### 1.3 Mối quan hệ với các tài liệu cũ
 
 - **2 tài liệu trong `docs/root/` là mốc đúng đắn duy nhất** cho thuật toán (công thức, thứ tự xử lý, kết quả kỳ vọng TC1–TC8).
-- **3 tài liệu design cũ** (`DHOPM-Domain-Specification.md`, `DHOPM-Infrastructure-OOP-Design.md`, `DHOPM-Java-Infrastructure-Design.md`) và prototype `Default Project/` **chỉ dùng làm tham khảo, KHÔNG là mốc**. Việc lập plan và triển khai bắt đầu từ mốc [1]/[2], làm lại từ đầu.
+- **Toàn bộ tài liệu draft cũ đã được chuyển sang branch `archive/legacy-draft`** và **xóa khỏi main** (theo quyết định của chủ dự án): 3 tài liệu design cũ (`DHOPM-Domain-Specification.md`, `DHOPM-Infrastructure-OOP-Design.md`, `DHOPM-Java-Infrastructure-Design.md`), prototype `Default Project/`, và `draft/`. Chúng chỉ dùng làm tham khảo trên branch đó, **KHÔNG là mốc**. Việc lập plan và triển khai bắt đầu từ mốc [1]/[2], làm lại từ đầu.
 
 ---
 
@@ -149,6 +150,8 @@ Cả 3 phiên bản **đều phải** dùng Thread + worker. Khung chung định
 - Luôn tuân INV-E / C5: chỉ chia các **đơn vị công việc độc lập**; nếu cần ranh giới, ranh giới là *node* (Reconstruction), *cây con* (Mining), *nhóm batch* (Construction).
 - Số worker mặc định = số lõi; cấu hình được qua tham số.
 - Khóa giao diện "công việc" (task) tối thiểu để V1–V3 cài được khung giống nhau nhưng triển khai khác nhau.
+- **Thread/worker pool là util dùng chung** (đặt trong `dhopm-common`), cả 3 module engine tái dùng — không tự viết riêng từng version.
+- **Logging & benchmark độc lập với thuật toán:** việc đo/ghi thời gian, ghi log nằm **ngoài hot path** (qua wrapper/decorator ở tầng contract, dùng util chung); khi tắt log thì không thêm chi phí — tránh "vì ghi log nên thuật toán chạy chậm hơn".
 
 ---
 
@@ -158,20 +161,26 @@ Cả 3 phiên bản **đều phải** dùng Thread + worker. Khung chung định
 
 ```
 implementation/
-├── pom.xml                     # parent (Java 17)
+├── pom.xml                     # parent (Java 25)
 ├── dhopm-common/               # DÙNG CHUNG, KHÔNG chứa thuật toán của version
 │   ├── src/main/java/…          #   io: TransactionSource, reader FIMI, reader text
 │   │                            #   config: MiningConfig (∂, f, workers, ε)
 │   │                            #   contract: giao diện Engine (loadBatch, mineNow, result)
+│   │                            #   util DÙNG CHUNG: thread/worker pool, benchmark utils,
+│   │                            #     logging (async, KHÔNG nằm trong hot path của thuật toán)
 │   └── src/test/java/…          #   TestKit: golden TC1–TC8, IncrementalDriver, DeterminismAssert
-├── dhopm-v1-standard/          # Project Engine 1 (Level 1 threading) – tài liệu riêng
-├── dhopm-v2-optimized/         # Project Engine 2 (Level 2 threading + DS tối ưu) – tài liệu riêng
-├── dhopm-v3-extreme/           # Project Engine 3 (tạo khi bắt đầu giai đoạn 3; hiện chỉ ghi ý tưởng trong plan 03)
-├── dhopm-bench/                # Harness đo runtime/memory/throughput + script dataset
-└── dhopm-app/                  # (Giai đoạn G4) Debug/Compare app kết nối 3 engine – chưa triển khai
+├── dhopm-v1-standard/          # Module Engine 1 (Level 1 threading + GoF) – tài liệu riêng
+├── dhopm-v2-optimized/         # Module Engine 2 (Level 2 threading + DS tối ưu) – tài liệu riêng
+├── dhopm-v3-extreme/           # Module Engine 3 (tạo khi bắt đầu giai đoạn 3; hiện chỉ ghi ý tưởng trong plan 03)
+├── dhopm-bench/                # Harness đo runtime/memory/throughput (dùng util chung của dhopm-common)
+└── dhopm-app/                  # Module UI riêng (G4) – debug/compare app, dùng 3 engine qua module; có loading screen
 ```
 
-**Nguyên tắc:** `dhopm-common` chia sẻ **đầu vào và hạ tầng đo lường**, không chia sẻ logic thuật toán → ngăn "rò rỉ" tối ưu giữa các phiên bản, giữ phép so sánh công bằng.
+**Nguyên tắc:**
+- `dhopm-common` chia sẻ **đầu vào, util chung và hạ tầng đo lường** — **không** chia sẻ logic thuật toán → ngăn "rò rỉ" tối ưu giữa các phiên bản, giữ phép so sánh công bằng.
+- **Util chung (thread/worker, benchmark, logging) do cả 3 module engine tái dùng** (không viết lại riêng từng version).
+- **Logging & benchmark độc lập với thuật toán:** instrument qua lớp bọc (wrapper/decorator) ở tầng contract, không chèn vào hot path → việc ghi log/đo không làm thuật toán chạy chậm hơn; khi tắt log thì gần như zero-overhead.
+- 3 algorithm là **3 module** (về bản chất như 3 project nhỏ, có tài liệu riêng); `dhopm-app` (UI) là module tách biệt để tránh làm chậm/freeze giao diện khi mining.
 
 ### 4.1 Cấu trúc Tài liệu & Workflow
 
@@ -186,13 +195,16 @@ Bản đồ tài liệu (layered):
 | Yêu cầu tổng | **SRS tổng thể** (3 engine + harness + app) | `docs/srs/DHOPM-SRS.md` | ⬜ Viết ở giai đoạn planning |
 | Thiết kế trình bày | **UI Layout** (so sánh gì, đồ thị gì, giá trị nào) | `docs/srs/DHOPM-UI-LAYOUT.md` | ⬜ Viết ở giai đoạn planning |
 | Tài liệu mốc | Paper + ví dụ chạy tay | `docs/root/` | ✅ (mốc đúng đắn) |
-| Tài liệu riêng từng project engine | README, thiết kế (design), test plan & kết quả, benchmark report | Trong module `implementation/dhopm-vX/` | 🕔 Tạo khi chạy giai đoạn G1/G2/G3 tương ứng |
-| Plan + tài liệu từng giai đoạn | Plan chi tiết của G0/G1/G2/G3/G4 + tài liệu ra của giai đoạn đó | `docs/phases/` (tạo dần) | 🕔 Tạo khi bắt đầu mỗi giai đoạn |
+| Draft cũ (đã lưu trữ) | 3 design + `Default Project/` + `draft/` — chỉ tham khảo | Branch `archive/legacy-draft` | ✅ (đã xóa khỏi main) |
+| Tài liệu riêng từng module engine | README + **design cấu trúc & từng thành phần/hàm** + test plan & kết quả + benchmark report | Trong module `implementation/dhopm-vX/` | 🕔 Tạo khi chạy giai đoạn G1/G2/G3 tương ứng (**nội dung nghĩ ra trong lúc làm**; V2/V3 kèm **lý do chọn tối ưu + so với V1**) |
+| Plan + tài liệu từng giai đoạn | Plan chi tiết của G0/G1/G2/G3/G4 + tài liệu ra của giai đoạn đó (trong đó có design từng component/function) | `docs/phases/` (tạo dần) | 🕔 Tạo khi bắt đầu mỗi giai đoạn |
 
 **Quy tắc workflow:**
 1. Mỗi giai đoạn triển khai (G0→G4) bắt đầu bằng việc tạo **plan riêng** (`docs/phases/P<i>-<tên>.md`) rồi mới code.
-2. Mỗi project engine sản xuất **bộ tài liệu riêng** trong module của nó (README, design, test, report) — kết thúc giai đoạn chỉ được xem là xong khi đủ tài liệu theo tiêu chí hoàn thành.
-3. **Debug app (G4)** sửa đổi/thao tác chi tiết thuật toán → là **yêu cầu hệ thống** (đã ghi trong SRS mục 9) nhưng **plan/thiết kế chi tiết chỉ lập khi đến G4**.
+2. Mỗi giai đoạn sản xuất **tài liệu cấu trúc & design từng thành phần/hàm** (bên trong module của giai đoạn) — nội dung chi tiết được **nghĩ ra trong lúc làm tại giai đoạn đó**, không cố định trước. V2 và V3 còn phải giải thích **tại sao chọn tối ưu đó** và **nó như thế nào so với V1**.
+3. **Thiết kế theo giai đoạn:** V1 áp dụng **design pattern GoF** (thấy ở đâu hợp lý; không ép buộc từng pattern); V2 — nếu có **cấu trúc/kiến trúc/thiết kế tốt hơn GoF** thì áp dụng, nếu không thì thực hiện theo plan; V3 **không cần** (đã cực đoan sẵn).
+4. Mỗi module engine sản xuất **bộ tài liệu riêng** trong module của nó (README, design, test, report) — kết thúc giai đoạn chỉ được xem là xong khi đủ tài liệu theo tiêu chí hoàn thành.
+5. **Debug app (G4)** sửa đổi/thao tác chi tiết thuật toán → là **yêu cầu hệ thống** (đã ghi trong SRS mục 9) nhưng **plan/thiết kế chi tiết chỉ lập khi đến G4**. App chọn **≥1 engine** để chạy/so sánh (min 1 = chạy đơn); UI tách module riêng, có **loading/mining screen** để tránh freeze — chi tiết bàn khi làm app/UI.
 
 ---
 
@@ -227,6 +239,7 @@ Bản đồ tài liệu (layered):
 > - **Scalability:** dùng `kosarak.dat` (≈990K trans) làm dataset lớn, có thể cắt theo số dòng (200K→990K) như cách paper dùng T10I4DxK.
 > - **Synthetic dự phòng (tuỳ chọn):** bộ sinh dữ liệu cấu hình T10I4DxK giữ nguyên nếu cần thêm dữ liệu.
 - Protocol mô phỏng incremental (theo paper): chia mỗi dataset thành **5 phần bằng nhau**, nạp tuần tự từng phần, mỗi bước đo.
+- `dataset/default.dat`: dataset demo (định dạng text, item là chuỗi `A`–`G`, 8 transaction = dữ liệu ví dụ chạy tay), dùng để **thử nghiệm nhanh**, **không thuộc** bộ benchmark.
 - Cần 1 bước nhỏ trong G0: **validate** các file dataset đọc qua FIMI reader và tái sinh bảng thống kê (dùng để đối chiếu).
 
 ---
@@ -272,11 +285,11 @@ Nghiệm thu đúng đắn dùng 8 test case ở **Phần 11 của [2]**:
 Giai đoạn | Nội dung | Sản phẩm đầu ra | Chế độ chờ
 ---|---|---|---
 **C0. Planning (hiện tại)** | Lập plan tổng thể + 3 plan phiên bản; **SRS tổng thể**; **UI Layout** | `docs/plans/*`, `docs/srs/DHOPM-SRS.md`, `docs/srs/DHOPM-UI-LAYOUT.md` | — |
-**G0. Khởi động** | (tạo `docs/phases/P0-G0.md` trước) Xác nhận các quyết định mở (mục 10); kiểm tra toolchain JDK17+Maven; tạo structure Maven; seed `dhopm-common` (io/config/TestKit TC1–TC8); **validate 7 dataset trong `dataset/`** (FIMI reader + tái sinh bảng thống kê 5.2) | Structure + TestKit chạy được + dataset validated | C0 |
-**G1. V1 Standard** | (tạo plan + tài liệu giai đoạn) Làm theo plan 01: triển khai đầy đủ, Level 1 threading, qua TC1–TC8, benchmark sơ bộ, **bộ tài liệu riêng của `dhopm-v1-standard`** | `dhopm-v1-standard` hoàn chỉnh (code + README + design + test + report) | G0 |
-**G2. V2 Optimized** | (tạo plan + tài liệu giai đoạn) Làm theo plan 02: tối ưu DS, Level 2 threading, benchmark đầy đủ so V1, **bộ tài liệu riêng của `dhopm-v2-optimized`** | `dhopm-v2-optimized` + báo cáo benchmark | G1 (dùng V1 làm golden) |
-**G3. V3 Extreme** | (tạo plan + tài liệu giai đoạn) Làm theo plan 03 (hiện ý tưởng; chi tiết hóa tại G3): DOD, loại bỏ OOP, tối đa song song, **bộ tài liệu riêng của `dhopm-v3-extreme`** | `dhopm-v3-extreme` + báo cáo so sánh | G2 |
-**G4. Debug/Compare App** | (lập **plan riêng khi tới giai đoạn** – đã ghi yêu cầu trong SRS mục 9) Xây `dhopm-app`: so sánh 3 engine + debug nội bộ, cho phép **sửa đổi/thao tác chi tiết thuật toán** | `dhopm-app` (GUI) + bộ tài liệu của nó | Sau G2 (thứ tự cụ thể bàn khi G4 bắt đầu) |
+**G0. Khởi động** | (tạo `docs/phases/P0-G0.md` trước) Xác nhận các quyết định mở (mục 10); kiểm tra toolchain JDK25+Maven; tạo structure Maven; seed `dhopm-common` (io/config/TestKit TC1–TC8); **validate 7 dataset trong `dataset/`** (FIMI reader + tái sinh bảng thống kê 5.2) | Structure + TestKit chạy được + dataset validated | C0 |
+**G1. V1 Standard** | (tạo plan + tài liệu giai đoạn) Làm theo plan 01: triển khai đầy đủ, **áp dụng design pattern GoF**, Level 1 threading, qua TC1–TC8, benchmark sơ bộ; **design cấu trúc & từng thành phần/hàm** trong module | `dhopm-v1-standard` hoàn chỉnh (code + README + design + test + report) | G0 |
+**G2. V2 Optimized** | (tạo plan + tài liệu giai đoạn) Làm theo plan 02: tối ưu DS, Level 2 threading, benchmark đầy đủ so V1; **nếu có cấu trúc/kiến trúc tốt hơn GoF thì áp dụng, không thì theo plan**; **design nêu rõ tại sao chọn tối ưu + so với V1** | `dhopm-v2-optimized` + báo cáo benchmark | G1 (dùng V1 làm golden) |
+**G3. V3 Extreme** | (tạo plan + tài liệu giai đoạn) Làm theo plan 03 (hiện ý tưởng; chi tiết hóa tại G3): DOD, loại bỏ OOP, tối đa song song; **không cần design pattern** (đã cực đoan); **design nêu rõ tại sao + so với V2** | `dhopm-v3-extreme` + báo cáo so sánh | G2 |
+**G4. Debug/Compare App** | (lập **plan riêng khi tới giai đoạn** – đã ghi yêu cầu trong SRS mục 9) Xây `dhopm-app` (module UI riêng, có **loading/mining screen** tránh freeze): chọn **≥1 engine** để chạy/so sánh, debug nội bộ, cho phép **sửa đổi/thao tác chi tiết thuật toán** | `dhopm-app` (GUI) + bộ tài liệu của nó | Sau G2 (thứ tự cụ thể bàn khi G4 bắt đầu) |
 
 > **Chốt theo bạn:** giai đoạn hiện tại **chỉ lập plan**; mỗi giai đoạn về sau sẽ có **plan cụ thể + tài liệu cụ thể của giai đoạn đó**. V1 → V2 → V3 có **phụ thuộc tuần tự**; V3 chỉ chi tiết hóa sau khi V1, V2 xong. Debug app (G4) bàn luận/lập plan **sau khi đến giai đoạn làm app**.
 
@@ -301,7 +314,7 @@ Giai đoạn | Nội dung | Sản phẩm đầu ra | Chế độ chờ
 |---|---|---|
 | D1 | Build tool | Maven (đa module) |
 | D2 | Vị trí dự án code | `implementation/` trong repo `D:\JVNC\JVNC` (có thể đổi sang `D:\JVNC\JVNC Project`) |
-| D3 | Xử lý `Default Project/` cũ | Không tái sử dụng; giữ nguyên hoặc lưu trữ; loại khỏi build |
+| D3 | Xử lý `Default Project/` + `draft/` cũ | **Đã lưu trữ trên branch `archive/legacy-draft` và xóa khỏi main** (quyết định B). Không tái sử dụng; không liên quan build |
 | D4 | Thread pool mặc định | = `availableProcessors()`; cấu hình override qua tham số CLI/config |
 | D5 | Format input mặc định cho CLI/benchmark | FIMI (TID = số dòng) + text (TID tường minh) cho TC |
 
@@ -312,10 +325,11 @@ Giai đoạn | Nội dung | Sản phẩm đầu ra | Chế độ chờ
 - [ ] Có SRS tổng thể + UI Layout (tài liệu planning).
 - [ ] TestKit (TC1–TC8) xanh trên cả V1, V2 (và V3 khi có).
 - [ ] V1, V2 cho **tập DOP trùng khớp** (kiểm mapping double đầy đủ).
-- [ ] Mỗi project engine có **bộ tài liệu riêng** (README, design, test, benchmark report).
+- [ ] Mỗi module engine có **bộ tài liệu riêng** (README, **design cấu trúc & từng thành phần/hàm**, test, benchmark report; V2/V3 kèm **lý do chọn tối ưu + so sánh với phiên bản trước**).
+- [ ] V1 áp dụng design pattern GoF; V2 (nếu có) áp dụng cấu trúc tốt hơn GoF, không thì theo plan; V3 không cần pattern.
 - [ ] V2 benchmark xong trên tối thiểu 4 dataset cục bộ (gồm dense + sparse) + scalability `kosarak.dat`; so sánh V1 vs V2.
 - [ ] V3 có plan chi tiết + triển khai (giai đoạn cuối).
-- [ ] G4: debug/compare app (có plan riêng khi đến giai đoạn) cho phép so sánh + sửa đổi chi tiết thuật toán.
+- [ ] G4: debug/compare app (có plan riêng khi đến giai đoạn) — module UI riêng + loading screen, chọn **≥1 engine** so sánh (min 1 = chạy đơn), cho phép sửa đổi chi tiết thuật toán.
 
 ---
 

@@ -89,9 +89,10 @@ Canonical spec C1–C6, bất biến INV-A..E, pipeline GĐ1–GĐ3 — **bắt 
 | FE3 | `loadBatch(batch)`: cập nhật global DHO-List, tiến stream (one-scan); `mineNow()`: reconstruction + DOP mining theo canonical | Cao | G1–G3 |
 | FE4 | Output kết quả: tập pattern kèm DO (+ occurrences tuỳ chọn); chuẩn hoá thứ tự hiển thị (C6) | Cao | G1 |
 | FE5 | Mô phỏng incremental: chia dataset thành 5 phần, nạp tuần tự, đo mỗi bước | Cao | G1 |
-| FE6 | Đo & ghi metric: runtime 3 giai đoạn, peak memory, throughput, latency batch, scalability | Cao | G1/G2 (`dhopm-bench`) |
-| FE7 | So sánh chéo 3 engine: cùng dataset/tham số, hiển thị bảng + biểu đồ (chi tiết: UI-LAYOUT) | Cao | G4 |
+| FE6 | Đo & ghi metric: runtime 3 giai đoạn, peak memory, throughput, latency batch, scalability — **độc lập với thuật toán** (đo qua wrapper ở tầng contract, không chèn hot path; tắt log = gần zero-overhead) | Cao | G1/G2 (`dhopm-bench` + util chung `dhopm-common`) |
+| FE7 | So sánh chéo engine: **chọn ≥1 engine** để chạy/so sánh (min 1 = chạy đơn) trên cùng dataset/tham số; hiển thị bảng + biểu đồ (chi tiết: UI-LAYOUT) | Cao | G4 |
 | FE8 | Xuất dữ liệu: CSV/JSON (kết quả DOP + metric) | TB | G2/G4 |
+| FE8a | **Module hoá:** 3 algorithm là 3 module engine (mỗi module tài liệu riêng); util chung (thread/worker, benchmark, logging) dùng chung từ `dhopm-common`; UI là **module riêng (`dhopm-app`)** có **loading/mining screen** để user biết app đang mining, tránh freeze UI (chi tiết tại G4) | Cao | G1–G4 |
 | FE9 | **Debug nội bộ:** xem global DHO-List (node: item, support, entries/TID), DO từng node, DUBO của prefix, nội dung conditional list, trace DFS (nhánh mở rộng/prune/skip), số node khám phá | Cao | G4 |
 | FE10 | **Sửa đổi chi tiết thuật toán tại runtime (debug app):** bật/tắt skip khi `support < minSup` (C2), bật/tắt prune DUBO, bật/tắt chèn kết quả, chọn cách DUBO (C1), chọn tie-break/sort stable (C3), thay `∂/f/ε`, chọn threading level & worker count, (V2) chọn cấu trúc dữ liệu/decay lookup, (V3) chọn pipeline — rồi **chạy lại** và xem khác biệt kết quả/hiệu năng | Cao | G4 (plan chi tiết tại G4) |
 | FE11 | Xem dữ liệu thô: transaction theo TID, độ dài, item tham gia | TB | G4 |
@@ -111,6 +112,8 @@ Canonical spec C1–C6, bất biến INV-A..E, pipeline GĐ1–GĐ3 — **bắt 
 | NFR-S | **Scalability:** runtime/memory theo số transaction (kosarak 200K→990K) | benchmark |
 | NFR-T | **Thread-safety:** không race; gộp kết quả deterministic | tests + chạy lặp |
 | NFR-U | **Usability (G4):** thao tác trực quan; các biểu đồ so sánh đúng trọng tâm; filter/tìm kiếm; export | review G4 |
+| NFR-LOG | **Logging/Benchmark độc lập:** hoạt động đo/ghi thời gian không làm thay đổi hành vi và không làm thuật toán chạy chậm (instrument qua Decorator/Proxy ở tầng contract, ghi log async/buffered; tắt = zero-overhead) | kiểm tra đo chênh lệch bật/tắt log |
+| NFR-FX | **UI không bị freeze (G4):** mining chạy nền (không chặn UI thread); hiển thị loading/mining screen + tiến trình | review G4 |
 | NFR-SEC | Không nhúng secret; không yêu cầu mạng khi chạy | review |
 
 ---
@@ -136,7 +139,7 @@ Canonical spec C1–C6, bất biến INV-A..E, pipeline GĐ1–GĐ3 — **bắt 
 
 ## 7. Ràng buộc & Giả định
 
-- Ràng buộc: **Java 17 LTS**; môi trường dev **Windows**; build **Maven (đa module)** (đang chốt D1–D2).
+- Ràng buộc: **Java 25 LTS**; môi trường dev **Windows**; build **Maven (đa module)** (đang chốt D1–D2).
 - Giả định: dữ liệu vừa bộ nhớ máy dev hiện tại; dataset FIMI đã có sẵn; không cần phân tán.
 - Quyết định mở D1–D5 của plan tổng thể là đầu vào ràng buộc khi triển khai G0.
 
@@ -156,9 +159,10 @@ Canonical spec C1–C6, bất biến INV-A..E, pipeline GĐ1–GĐ3 — **bắt 
 
 > Giai đoạn G4 sẽ lập plan/thiết kế riêng. Tại đây chỉ chốt **yêu cầu mức hệ thống** để các giai đoạn trước giữ thiết kế tương thích:
 
-- **So sánh:** 3 engine cùng dataset/tham số — bảng giá trị, biểu đồ; xem khác biệt chi tiết (FE7).
+- **So sánh:** chọn **≥1 engine** (min 1 = chạy đơn) trên cùng dataset/tham số — bảng giá trị, biểu đồ; xem khác biệt chi tiết (FE7).
 - **Debug nội bộ:** các "điểm khảo sát" thuật toán hiển thị được (DHO-List, DO, DUBO, conditional list, trace DFS, counters) (FE9).
 - **Sửa đổi chi tiết thuật toán:** các thuộc tính/quyết định canonical (C1–C6) và cấu trúc phơi bày thành tham số để bật/tắt/sửa, chạy lại lập tức, so sánh delta kết quả & hiệu năng (FE10).
+- **Kiến trúc:** UI là **module riêng** (`dhopm-app`) trên nền 3 module engine; mining chạy nền, có **loading/mining screen + tiến trình** tránh freeze UI (NFR-FX); log qua util chung, không chặn UI.
 - Ràng buộc kỹ thuật GUI (JavaFX/Swing, v.v.) → **quyết định tại G4**.
 - Yêu cầu này **không làm tăng yêu cầu của G1–G3** ngoài việc giữ module hoá ranh giới (mục 3 — note FE9/FE10).
 

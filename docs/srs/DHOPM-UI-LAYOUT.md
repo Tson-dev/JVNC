@@ -23,7 +23,9 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 ## 2. Nguyên tắc trình bày
 
 - **Nhất quán màu theo phiên bản:** V1 = xanh dương, V2 = xanh lá, V3 = cam (applied cho mọi biểu đồ/bảng/card trên toàn app).
-- **Cùng một dataset + tham số** thì 3 engine luôn hiển thị cạnh nhau (grouped), không tách màn hình riêng lẻ → dễ so.
+- **Cùng một dataset + tham số** thì các engine đang chọn luôn hiển thị cạnh nhau (grouped), không tách màn hình riêng lẻ → dễ so.
+- **Bộ chọn engine:** chọn **≥1 engine** để chạy (`min 1 = chạy đơn`; chọn nhiều = chế độ so sánh). Màu theo từng version; engine không chọn bị làm mờ.
+- **UI là module riêng (`dhopm-app`); mining chạy nền** (không chặn UI thread): khi đang chạy luôn hiển thị **loading/mining screen** (spinner + tiến trình theo giai đoạn) → không freeze giao diện (NFR-FX).
 - Giá trị kèm đơn vị rõ (ms, s, MB, DOP/s); tooltip giải thích; hỗ trợ dark/light mode.
 - Mọi bảng có export CSV/JSON và đều có filter/tìm kiếm.
 - Trạng thái (đang chạy / xong / lỗi) hiển thị trên từng engine card.
@@ -32,24 +34,24 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Toolbar: [Dataset ▾] [∂ ▾] [f ▾] [Workers] [ε] [Run] [Engine ✓✓✓] │
-│           [Reset] [Export…]                    [Theme ▾]   [Help]      │
+│  Toolbar: [Dataset ▾] [∂ ▾] [f ▾] [Workers] [ε] [Engine ☑☐☐ ≥1]     │
+│           [Run] [Reset] [Export…]                      [Theme ▾]  │
 ├──────────┬───────────────────────────────────────────────────────────┤
 │ Sidebar  │            Vùng nội dung — Tab chính                      │
 │ (Điều     │  ┌─────────────────────────────────────────────────────┐  │
 │ khiển &   │  │ Tab1 So sánh hiệu năng │ Tab2 Kết quả │ Tab3 Debug │  │
 │ chạy thử) │  │                                                     │  │
 │  · chọn   │  │  <nội dung theo từng tab — dưới đây>                │  │
-│    versions│  │                                                     │  │
+│    engines│  │                                                     │  │
 │  · slider │  └─────────────────────────────────────────────────────┘  │
-│    tham số│  │  Log / Console (output run, warnings, timing)          │
+│    tham số│  │  Loading/Mining screen: (✓ spinner + giai đoạn + %)   │
 ├──────────┴───────────────────────────────────────────────────────────┤
 │  Status bar: trạng thái chạy, thời gian, dataset, minSup hiện tại     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-- Sidebar theo ngữ cảnh tab đang mở: chọn engine để chạy, tinh chỉnh nhanh tham số, chọn dataset.
-- Console log bắt buộc hiển thị để người dùng đối chiếu với mô tả thuật toán.
+- **Engine selector:** tick `≥1` phiên bản (V1/V2/V3); **1 tick = chạy đơn**, `≥2` tick = chế độ so sánh (min 1 bắt buộc).
+- **Loading/Mining screen:** xuất hiện ngay khi Run — overlay dải tiến trình theo GĐ1→GĐ3, dừng phép tính nền, **không chặn UI** (NFR-FX); log hiển thị qua util chung ghi async, không làm chậm thuật toán (NFR-LOG).
 
 ## 4. Tab 1 — So sánh Hiệu năng (benchmark)
 
@@ -115,9 +117,10 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 ## 8. Thành phần dùng chung
 
 - **Component "Engine card"**: tên version, màu tương ứng, trạng thái chạy, thời gian, memory — dùng lại mọi tab.
-- **Nút Run/Run lại**: chạy 1 hoặc cả 3 engine đang chọn trên dataset + tham số hiện hành; chạy bất đồng bộ, cập nhật dần lên biểu đồ.
+- **Nút Run/Run lại**: chạy **≥1 engine** đang chọn (min 1 = chạy đơn) trên dataset + tham số hiện hành; chạy bất đồng bộ; khi đang chạy hiển thị loading/mining screen và cập nhật dần lên biểu đồ.
+- **Loading/Mining screen**: overlay tiến trình (GĐ1–GĐ3, %), map sang util tiến trình từ `dhopm-common`; không chặn UI thread (NFR-FX).
 - **Export**: CSV cho bảng, JSON cho toàn bộ phiên chạy (config + kết quả + metric) → tái lập được về sau.
-- **Log console**: ghi theo từng giai đoạn; timestamp; hỗ trợ copy.
+- **Log console**: ghi theo từng giai đoạn; timestamp; **ghi async qua util chung**, không nằm trong hot path của thuật toán (NFR-LOG) và không chặn UI; hỗ trợ copy.
 
 ## 9. Phạm vi hiện tại
 

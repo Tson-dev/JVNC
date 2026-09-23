@@ -15,7 +15,7 @@
 
 ## 1. Vị trí & Mục tiêu ý tưởng
 
-Phiên bản "tối ưu cực đoan": **loại bỏ dần khái niệm OOP**, chỉ tập trung vào hiệu năng (tốc độ + bộ nhớ), vẫn trong **Java 17**, vẫn **Thread + worker**, vẫn **trùng kết quả** V1/V2 theo canonical.
+Phiên bản "tối ưu cực đoan": **loại bỏ dần khái niệm OOP**, chỉ tập trung vào hiệu năng (tốc độ + bộ nhớ), vẫn trong **Java 25**, vẫn **Thread + worker**, vẫn **trùng kết quả** V1/V2 theo canonical. **Không áp dụng design pattern** (kể cả GoF) vì đây là phiên bản cực đoan — mục tiêu hiệu năng, không mục tiêu cấu trúc pattern.
 
 Các mục tiêu định hướng:
 1. Tối đa **cache locality** và **bandwidth bộ nhớ** (dữ liệu contiguous, vòng lặp đơn giản).
@@ -61,7 +61,7 @@ Khi bắt đầu giai đoạn V3 (sau khi V1/V2 xong) phải:
 
 ## 5. Tiêu chí "Done" (tạm, sẽ cập nhật khi chi tiết hoá)
 
-- TC/chạy đúng + trùng V2; benchmark vượt trội V2 (định lượng tại thời điểm triển khai); vẫn Thread + worker; vẫn Java 17.
+- TC/chạy đúng + trùng V2; benchmark vượt trội V2 (định lượng tại thời điểm triển khai); vẫn Thread + worker; vẫn Java 25; không dùng pattern.
 
 ---
 

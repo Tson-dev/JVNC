@@ -61,6 +61,21 @@
 - DO/DUBO một node luôn tính tuần tự (C5).
 - Conditional list không sort (INV-D).
 
+### 4.1 Áp dụng Design Pattern GoF (bắt buộc cho V1)
+
+V1 **áp dụng design pattern GoF** ở những chỗ hợp lý (không ép từng pattern vào từng class). Định hướng ban đầu:
+
+| Pattern (GoF) | Đặt vào | Mục đích |
+|---|---|---|
+| **Strategy** | Metrics/DUBO (cách tính DO, decay) | Cô lập công thức để test từng biến thể, giao sau cho V2 đổi chiến lược |
+| **Factory Method / Builder** | Dựng `DHONode`, `DHOList`, `MiningConfig` | Kiểm soát tạo dựng, dễ thêm lựa chọn cấu trúc sau |
+| **Template Method** | Pipeline giai đoạn (load → reconstruct → mine) | Khung cố định, bước con cho subclass V-sau |
+| **Facade** | `MiningEngine` | API gọn cho CLI/benchmark/app (loadBatch, mineNow) |
+| **Decorator/Proxy** | Instrumentation/log/benchmark ở tầng contract (`dhopm-common`) | **Logging & đo thời gian tách khỏi thuật toán** → không làm hot path chậm; tắt log = zero-overhead |
+| **Observer** | (tuỳ chọn) tiến trình mining → progress callback | App UI cập nhật trạng thái/mining screen mà không trói engine vào UI |
+
+> **Quan trọng:** dùng GoF để đạt "đúng & dễ hiểu", đồng thời tạo ranh giới module hoá cho V2 (điểm sửa đổi) và cho debug app G4 (wrapper đo tiến trình). Không tối ưu sớm lấy những pattern rườm rà.
+
 ## 5. Khung Threading Level 1 (bắt buộc)
 
 ```
@@ -87,9 +102,10 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 
 ## 6. Công việc & Milestone (V1)
 
-**M1 – Setup hạ tầng** (dựa trên G0 tổng thể)
-- [ ] Tạo `dhopm-v1-standard` module; import `dhopm-common` (io, config, TestKit).
+**M1 – Setup hạ tầng & khởi tạo tài liệu design** (dựa trên G0 tổng thể)
+- [ ] Tạo `dhopm-v1-standard` module; import `dhopm-common` (io, config, TestKit, util chung thread/log).
 - [ ] CLI chạy thử đơn giản (nạp text/FIMI, in DOP).
+- [ ] Bắt đầu **tài liệu design cấu trúc & từng thành phần/hàm** (đặt trong module) — viết song song khi code, **nội dung nghĩ ra trong lúc làm giai đoạn G1**; áp dụng GoF (mục 4.1).
 
 **M2 – Mô hình dữ liệu & Construction** (GĐ1)
 - [ ] `Item`, `Entry`, `Transaction` (chuẩn hoá item phân biệt, loại giao dịch rỗng).
@@ -111,6 +127,7 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 **M5 – Nghiệm thu đúng đắn**
 - [ ] GoldenRunner chạy TC1–TC8 → pass (so tolerance 1e-6 với bảng; ghi lại **actual double** làm golden cho V2).
 - [ ] Determinism: chạy lại nhiều lần (đổi pool size 1/2/4/cpu) → cùng kết quả.
+- [ ] Xác nhận **log/benchmark độc lập**: bật/tắt logging không làm đổi kết quả; khi tắt log không ghi nhận chi phí đáng kể (Decorator ở contract, không ở hot path).
 
 **M6 – Benchmark sơ bộ & bộ tài liệu project V1**
 - [ ] Chạy 2 dataset đại diện từ `dataset/` – `mushroom.dat` (dense, ∂=6%) và `retail.dat` (sparse, ∂=0.1%), chia 5 phần incremental; ghi runtime 3 giai đoạn + peak memory.

@@ -43,6 +43,11 @@
 
 ## 4. Quyết định tối ưu Cấu trúc Dữ liệu (trọng tâm V2)
 
+### 4.0 Định hướng kiến trúc V2 (so với GoF)
+
+- V1 dùng GoF (plan 01). V2: **nếu phát hiện cấu trúc/kiến trúc/thiết kế tốt hơn GoF** cho mục tiêu hiệu năng thì **áp dụng**; nếu không có, **thực hiện theo plan** (giữ phần hợp lý của GoF, thay phần không). Quyết định này phải được **ghi rõ trong tài liệu design của V2** (tại sao giữ/thay từng cấu trúc).
+- Yêu cầu đặc thù V2 trong tài liệu design (viết song song khi code tại giai đoạn G2): với **mỗi điểm tối ưu** phải ghi **tại sao chọn** và **nó như thế nào so với V1** (số liệu/rationale), tái dùng kết quả microbenchmark.
+
 Bảng so sánh quyết định Standard → Optimized (mỗi dòng là một "điểm tối ưu khảo sát"):
 
 | Vấn đề | V1 (Standard) | V2 (Optimized — đề xuất khảo sát) | Ghi chú |
@@ -119,6 +124,7 @@ Pool: ForkJoinPool (work-stealing) hoặc ExecutionService + thuật toán chia 
 - [ ] Sort support bằng primitive (tránh boxing) nhưng **giữ thứ tự ổn định = thứ tự tạo node** (C3).
 - [ ] DUBO dùng mảng bucket length thay TreeMap.
 - [ ] Microbenchmark từng đổi thay → ghi report; chỉ giữ phương án tốt hơn.
+- [ ] Ghi **tài liệu design từng thành phần/hàm** (trong module): mỗi tối ưu nêu **tại sao chọn + so với V1 như thế nào** (rationale + số liệu), và (mục 4.0) kết luận giữ/thay cấu trúc GoF.
 
 **M3 – Threading Level 2**
 - [ ] Chuyển sang ForkJoinPool; Reconstruction theo node trên pool.
@@ -137,7 +143,7 @@ Pool: ForkJoinPool (work-stealing) hoặc ExecutionService + thuật toán chia 
 - [ ] Báo cáo benchmark (`dhopm-bench/reports/`) — kèm môi trường phần cứng, cách đo, số lần chạy (≥3, median).
 
 **M6 – Hoàn tất & bộ tài liệu project V2**
-- [ ] **Bộ tài liệu riêng của project `dhopm-v2-optimized`** (đặt trong module): README (chạy/cấu hình tối ưu), design tóm tắt (quyết định DS + threading), test plan & kết quả, benchmark report đầy đủ.
+- [ ] **Bộ tài liệu riêng của project `dhopm-v2-optimized`** (đặt trong module): README (chạy/cấu hình tối ưu), **design cấu trúc & từng thành phần/hàm** kèm lý do chọn từng tối ưu và so với V1, test plan & kết quả, benchmark report đầy đủ.
 
 ## 7. Tiêu chí "Done" (V2)
 
