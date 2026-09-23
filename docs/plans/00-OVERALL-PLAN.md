@@ -157,7 +157,7 @@ Cả 3 phiên bản **đều phải** dùng Thread + worker. Khung chung định
 
 ## 4. Cấu trúc Dự án đề xuất
 
-> **Quyết định mặc định (xác nhận lại khi khởi động):** tạo dự án Maven **đa module** tại `D:\JVNC\JVNC\implementation\` (trong repo git hiện có, cạnh `docs/`, `dataset/`). Dùng Maven. Có thể đổi sang Gradle hoặc đặt tại `D:\JVNC\JVNC Project` nếu muốn tách — đánh dấu mở tại mục 10.
+> **Đã chốt:** dự án Maven **đa module** tại `D:\JVNC\JVNC\implementation\` (trong repo git hiện có, cạnh `docs/`, `dataset/`) — xem mục 10 (D1, D2).
 
 ```
 implementation/
@@ -274,7 +274,7 @@ Nghiệm thu đúng đắn dùng 8 test case ở **Phần 11 của [2]**:
 | Throughput | số DOP / giây (toàn bộ chu kỳ). |
 | Latency theo batch | thời gian xử lý mỗi phần 1/5 dataset (incremental). |
 | Scalability | `kosarak.dat` 200K→990K: runtime & memory theo số transaction. |
-| So sánh chéo | V1 vs V2 vs V3 (khi có) cùng dataset/tham số/threshold như paper [1] mục 4. |
+| So sánh chéo | V1 vs V2 vs V3 (khi có) cùng dataset/tham số/ngưỡng theo **bảng 5.2** (7 dataset cục bộ + ∂ gợi ý) với f=0.9. |
 
 **Tham số benchmark mặc định:** dùng bảng ∂ ở mục 5.2 (chess 35%, connect 30%, kosarak 0.05%, mushroom 6%, pumsb 30%, pumsb_star 30%, retail 0.1%); `f = 0.9`; chia 5 phần incremental; chạy ≥3 lần lấy median.
 
@@ -308,15 +308,15 @@ Giai đoạn | Nội dung | Sản phẩm đầu ra | Chế độ chờ
 
 ---
 
-## 10. Quyết định mở (cần xác nhận trước G0)
+## 10. Quyết định (đã chốt trước G0)
 
-| # | Quyết định | Mặc định đề xuất |
+| # | Quyết định | Kết luận |
 |---|---|---|
-| D1 | Build tool | Maven (đa module) |
-| D2 | Vị trí dự án code | `implementation/` trong repo `D:\JVNC\JVNC` (có thể đổi sang `D:\JVNC\JVNC Project`) |
-| D3 | Xử lý `Default Project/` + `draft/` cũ | **Đã lưu trữ trên branch `archive/legacy-draft` và xóa khỏi main** (quyết định B). Không tái sử dụng; không liên quan build |
-| D4 | Thread pool mặc định | = `availableProcessors()`; cấu hình override qua tham số CLI/config |
-| D5 | Format input mặc định cho CLI/benchmark | FIMI (TID = số dòng) + text (TID tường minh) cho TC |
+| D1 | Build tool | **Maven (đa module)** |
+| D2 | Vị trí dự án code | **`implementation/`** trong repo `D:\JVNC\JVNC` (cạnh `docs/`, `dataset/`) |
+| D3 | Xử lý `Default Project/` + `draft/` cũ | **Đã lưu trữ trên branch `archive/legacy-draft` và xóa khỏi main**. Không tái sử dụng; không liên quan build |
+| D4 | Thread pool mặc định | = **`availableProcessors()`**; override qua CLI/config. **Ghi chú debug app (G4):** nên có option cho user chọn số thread `> 0` tùy ý (chỉ là option — cân nhắc khi làm debug app) |
+| D5 | Format input mặc định cho CLI/benchmark | **FIMI** (TID = số dòng) + **text** (TID tường minh) cho TC |
 
 ---
 
