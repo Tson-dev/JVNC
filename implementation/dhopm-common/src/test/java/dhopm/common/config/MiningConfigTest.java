@@ -10,7 +10,7 @@ class MiningConfigTest {
     @Test
     void acceptsValidValues() {
         MiningConfig c = MiningConfig.of(0.15, 0.9);
-        assertEquals(0.15, c.delta());
+        assertEquals(0.15, c.partial());
         assertEquals(0.9, c.decayFactor());
         assertEquals(MiningConfig.DEFAULT_EPSILON, c.epsilon());
         assertEquals(MiningConfig.DEFAULT_WORKERS, c.workers());
@@ -34,7 +34,7 @@ class MiningConfigTest {
     }
 
     @Test
-    void minSupIsDeltaTimesTotal() {
+    void minSupIsPartialTimesTotal() {
         MiningConfig c = MiningConfig.of(0.15, 0.9);
         assertEquals(1.2, c.minSup(8), 1e-12);
         assertEquals(3.0, c.minSup(20), 1e-12);

@@ -85,7 +85,7 @@ Test Case 8: Trường hợp biên – Mỗi giao dịch 1 item
 | 𝐷𝑈𝐵𝑂(𝑋) | DUBO của pattern X |
 | Support / Sup | Số item có trong một transaction hoặc số item có trong database |
 | 𝑚𝑖𝑛𝑆𝑢𝑝 | Ngưỡng support tối thiểu – 𝑚𝑖𝑛𝑆𝑢𝑝 = 𝜕 × |𝐷𝐵| |
-| 𝜕 | Del – là ngưỡng phần trăm support do người dùng đặt (float ∈ [0,1]) |
+| 𝜕 | Partial – là ngưỡng phần trăm support do người dùng đặt (float ∈ [0,1]) – ký hiệu ∂ là partial (partial derivative), không phải delta |
 | DHO-List | Cấu trúc dữ liệu chứ các 𝑁𝑜𝑑𝑒, mỗi 𝑁𝑜𝑑𝑒 tương ứng với một item |
 | 𝑁𝑜𝑑𝑒 | Là cấu trúc lưu trữ dữ liệu của một Item, với cấu trúc tổng thể là <𝑇𝐼𝐷, 𝑇𝐿𝐸𝑁> và Entry Set |
 | Entry/Entry Set/ Entries | Với 𝑁𝑜𝑑𝑒 của pattern/item 𝑋, Entry là một tuple chứa thông tin cần thiết về transaction chứa 𝑋 |

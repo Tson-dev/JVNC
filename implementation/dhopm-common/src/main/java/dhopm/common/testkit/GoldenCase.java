@@ -12,10 +12,10 @@ import java.util.List;
  * @param id           case id (TC1..TC8)
  * @param transactions input transactions in TID order
  * @param decayFactor  decay factor f
- * @param delta        support threshold ∂
+ * @param partial       support threshold ∂ (partial, not delta)
  * @param expected     expected patterns (item-set + 4-decimal DO)
  */
-public record GoldenCase(String id, List<Transaction> transactions, double decayFactor, double delta,
+public record GoldenCase(String id, List<Transaction> transactions, double decayFactor, double partial,
                          List<Pattern> expected) {
 
     public int totalTransactions() {

@@ -20,8 +20,8 @@ public final class GoldenRunner {
         engine.loadBatch(golden.transactions());
         MineResult result = engine.mineNow();
         report.append(golden.id()).append("  f=").append(golden.decayFactor())
-                .append(" ∂=").append(golden.delta())
-                .append(" minSup=").append(golden.delta() * golden.totalTransactions())
+                .append(" ∂=").append(golden.partial())
+                .append(" minSup=").append(golden.partial() * golden.totalTransactions())
                 .append(" -> ").append(result.patterns().size()).append('/').append(golden.expected().size())
                 .append(" patterns\n");
         return GoldenAssert.matches(result, golden, tolerance, report);

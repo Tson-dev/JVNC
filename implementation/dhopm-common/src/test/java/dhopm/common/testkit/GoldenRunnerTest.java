@@ -32,7 +32,7 @@ class GoldenRunnerTest {
             @Override
             public MineResult mineNow() {
                 return new MineResult(result, golden.totalTransactions(), golden.lastTid(),
-                        golden.delta() * golden.totalTransactions());
+                        golden.partial() * golden.totalTransactions());
             }
         };
     }
@@ -69,7 +69,7 @@ class GoldenRunnerTest {
             @Override
             public MineResult mineNow() {
                 return new MineResult(List.of(new Pattern(new String[]{"A", "E"}, 1.26, new int[0])),
-                        golden.totalTransactions(), golden.lastTid(), golden.delta() * golden.totalTransactions());
+                        golden.totalTransactions(), golden.lastTid(), golden.partial() * golden.totalTransactions());
             }
         };
         StringBuilder report = new StringBuilder();
