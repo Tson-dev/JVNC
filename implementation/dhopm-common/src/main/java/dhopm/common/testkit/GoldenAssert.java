@@ -10,15 +10,16 @@ import java.util.Map;
  * Golden comparison logic.
  *
  * <p>Set comparison per canonical C6: patterns are matched by canonical key
- * (items sorted by natural order), DO values must match within a small tolerance
- * (golden values have 4 decimals, tolerance 1e-6 is safe).
+ * (items sorted by natural order), DO values must match within a small tolerance.
+ * The golden values are rounded to 4 decimals (max rounding error &lt; 5e-5),
+ * so the tolerance is 1e-4.
  */
 public final class GoldenAssert {
 
     private GoldenAssert() {
     }
 
-    public static final double GOLDEN_TOLERANCE = 1e-6;
+    public static final double GOLDEN_TOLERANCE = 1e-4;
 
     /** Comparison used between two real engine runs (exact double equality). */
     public static boolean samePatternSet(MineResult a, MineResult b) {

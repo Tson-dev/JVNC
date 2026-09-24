@@ -14,6 +14,8 @@
 
     <modules>
         <module>dhopm-common</module>
+        <module>dhopm-v1-standard</module>
+        <module>dhopm-bench</module>
     </modules>
 
     <properties>

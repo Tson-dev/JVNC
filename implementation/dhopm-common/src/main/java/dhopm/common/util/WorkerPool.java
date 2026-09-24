@@ -2,6 +2,8 @@ package dhopm.common.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -64,6 +66,42 @@ public final class WorkerPool implements AutoCloseable {
         if (failure != null) {
             throw failure;
         }
+    }
+
+    /**
+     * Runs all tasks, waits for completion, and collects results <em>in task order</em>
+     * (merge-after-join, deterministic). Rethrows the first task failure.
+     */
+    public <T> List<T> invokeAll(List<Callable<T>> tasks) {
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+        List<Future<T>> futures;
+        try {
+            futures = executor.invokeAll(tasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted while invoking workers", e);
+        }
+        List<T> results = new ArrayList<>(futures.size());
+        RuntimeException failure = null;
+        for (Future<T> f : futures) {
+            try {
+                results.add(f.get());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while awaiting workers", e);
+            } catch (ExecutionException e) {
+                if (failure == null) {
+                    failure = new IllegalStateException("worker task failed", e.getCause());
+                }
+                results.add(null);
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
+        return results;
     }
 
     public void shutdown() {
