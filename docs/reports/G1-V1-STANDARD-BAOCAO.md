@@ -13,8 +13,8 @@ chiếu** cho V2/V3. Bộ ba sản phẩm của giai đoạn:
 
 | Mô-đun | Vai trò |
 |---|---|
-| `dhopm-common` | Hợp đồng trung lập thuật toán: `Engine`, `PhaseAwareEngine`, đo lường, reader, TestKit, `WorkerPool` |
-| `dhopm-v1-standard` | Thuật toán DHOPM chuẩn (item = String, DHO-List = LinkedHashMap, threading Level 1) |
+| `dhopm-common` | Hợp đồng trung lập thuật toán: `Engine`, `PhaseAwareEngine`, `ProgressAwareEngine`, đo lường, reader, TestKit, `WorkerPool` |
+| `dhopm-v1-standard` | Thuật toán DHOPM chuẩn (item = String, DHO-List = LinkedHashMap, threading Level 1) + **CLI đa lệnh** |
 | `dhopm-bench` | Trình điều khiển benchmark: load tăng dần, in CSV theo phần |
 
 ---
@@ -28,6 +28,9 @@ chiếu** cho V2/V3. Bộ ba sản phẩm của giai đoạn:
 - `PhaseListener` — Observer nhận `onPhase(phase, startNanos, endNanos)`; engine **chỉ gọi ở
   biên pha và chỉ khi đặt listener** (chi phí 0 khi không dùng).
 - `PhaseAwareEngine` — giao diện engine-hiểu-pha (kế thừa `Engine`).
+- `ProgressAwareEngine` + `MiningProgressListener` + `MiningProgress` — **SPI tiến trình mining**
+  (tick theo root-task: completed/total, patterns, ms) — nền tảng cho CLI `stream` và G4 loading
+  screen; chỉ gọi khi đặt listener (chi phí 0, không đổi kết quả — INV-E).
 - `RunMetrics` — hồ sơ một lần chạy (engine, 3 pha ms, patternCount, lastTid, minSup, heap).
 - `TimedEngine` — Decorator: đo `loadBatch`/`mineNow` mà **không đụng thuật toán** (G1-D5).
 
@@ -35,6 +38,8 @@ chiếu** cho V2/V3. Bộ ba sản phẩm của giai đoạn:
 - `TimingRecorder` — tích lũy ms/heap từ `PhaseListener`.
 - `WorkerPool.invokeAll(List<Callable<T>>)` — chạy task, **gộp kết quả sau join theo thứ tự
   task** → deterministic (nền tảng cho mining song song theo root).
+- `WorkerPool.invokeAll(tasks, BiConsumer<Integer,T>)` — như trên, kèm callback `(index, result)`
+  khi từng task xong (nuôi `MiningProgress`), vẫn theo thứ tự task → INV-E.
 
 **Sửa:** `GoldenAssert.GOLDEN_TOLERANCE` 1e-6 → **1e-4** (bảng golden làm tròn 4 số lẻ,
 sai số tối đa < 5e-5 nên 1e-6 quá chặt).
@@ -47,12 +52,14 @@ sai số tối đa < 5e-5 nên 1e-6 quá chặt).
 | GĐ2 | `reconstruction.Reconstructor` | song song theo nút | DO từ 0 → tích lũy **tuần tự trên 1 nút** (C5) → `List.sort` ổn định theo support (C3) |
 | GĐ3 | `mining.Miner` · `mining.ConditionalListBuilder` | song song theo root | C2 bỏ nút khi support<minSup; C4 thêm DOP khi `DO ≥ minSup−ε`; **DUBO cắt tỉa** khi < minSup−ε; giao 2 con trỏ trên entry TID-tăng (INV-D) |
 | công thức | `metrics.MetricCalculator` · `dubo.DuboCalculator` | — | DO = Σ (l/|T|)·f^(TL−Td) · DUBO group theo |T| tăng (C1) |
-| engine | `engine.MiningEngine` (`PhaseAwareEngine` + `AutoCloseable`) | — | Facade của pipeline; sở hữu `WorkerPool`; đổi kết quả ổn định (INV-E) |
-| CLI | `cli.Main` | — | `--dataset --format --partial --f --workers --parts`, in CSV tăng dần |
+| engine | `engine.MiningEngine` (`PhaseAwareEngine` + `ProgressAwareEngine` + `AutoCloseable`) | — | Facade của pipeline; sở hữu `WorkerPool`; đổi kết quả ổn định (INV-E); getter chỉ đọc: `globalNodeCount/globalEntryCount/totalLoaded/lastTid/lastMiningTasks` |
+| CLI | `cli.Main` + `CliSupport` + 5 lệnh | — | **G1-D7**: `mine` (tóm tắt) · `detail` (nút/root/ms + top-N DO) · `stream` (log thời gian thực qua `MiningProgressListener`) · `golden` (TC1–TC8) · `inspect` (thống kê dataset); cú pháp cũ `--dataset …` = `mine` |
 
 **Quyết định áp dụng từ P1-G1:** G1-D1 Item=`String` · G1-D2 DHO-List=`LinkedHashMap` ·
 G1-D3 pool=`config.workers` · G1-D4 gộp-sau-join · G1-D5 `TimedEngine` ở common ·
-G1-D6 snapshot `golden-doubles-v1.json` (sinh tự động bởi test, độ chính xác máy).
+G1-D6 snapshot `golden-doubles-v1.json` (sinh tự động bởi test, độ chính xác máy) ·
+**G1-D7 CLI đa lệnh + SPI tiến trình** — công cụ nói chuyện với engine CHỈ qua API mở
+của `dhopm-common` (quyết định tổng thể **D6**, plan 00 mục 4.2).
 
 ### 2.3 dhopm-bench (mới)
 
@@ -69,7 +76,7 @@ patterns, heap_mb`.
 
 ---
 
-## 3. Kiểm thử — 46 test xanh / 0 lỗi
+## 3. Kiểm thử — 53 test xanh / 0 lỗi
 
 | Nhóm | Số test | Nội dung cốt lõi |
 |---|---|---|
@@ -81,6 +88,7 @@ patterns, heap_mb`.
 | `DeterminismTest` | 2 | TC3 **bit-for-bit giống hệt** workers ∈ {1,2,4,CPU} (INV-E); `mineNow` ×2 ổn định |
 | `IncrementalTest` | 2 | load 2 phần == load đủ (cùng TL/minSup) từng bit; TC6 trên DB0 đúng |
 | `GoldenDoublesSnapshotTest` | 1 | sinh `golden-doubles-v1.json` (mọi giá trị double round-trip chính xác, không NaN) |
+| `CliCommandsTest` | 7 | 5 lệnh chuẩn chạy trên dataset FIMI tạm; `--dataset …` cũ = `mine`; lệnh lạ → exit 2; `golden` 8/8 PASS; bật `MiningProgressListener` (`stream`) không đổi kết quả (INV-E) |
 
 **Bài toán vàng (in khi chạy test):**
 
@@ -163,6 +171,8 @@ incremental; cấu trúc dữ liệu DAM cho entry set; lựa chọn công cụ 
 1. Chốt cách chọn ∂ theo thang DO (→ áp dụng vào benchmark.md + 00-plans §5.2).
 2. Xác nhận benchmark params chính thức → lấy median, hoàn thiện bảng số liệu.
 3. (Trả lời câu hỏi ở cuối phiên) có cần thêm tối ưu cụ thể nào từ bản nháp của bạn không.
+4. Nghiệm thu phần **CLI đa lệnh + nguyên tắc giao tiếp API (D6)** vừa thêm — đã ghi vào
+   plan 00 (mục 4.2 + D6), 01 (mục 4.2 + M5/M6), P1-G1 (G1-D7 + M1/M5/M6).
 
 ---
 
@@ -170,11 +180,19 @@ incremental; cấu trúc dữ liệu DAM cho entry set; lựa chọn công cụ 
 
 ```bat
 :: từ thư mục gốc repo (set sẵn JDK 25 qua run.bat)
-cmd /c run.bat -q                          :: build + 46 test
+cmd /c run.bat -q                          :: build + 53 test
 
-:: CLI v1 trên dataset mẫu
+:: CLI v1 đa lệnh (dataset mẫu)
 java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
      dhopm.v1.cli.Main --dataset dataset\default.dat --partial 0.15 --f 0.9 --parts 2
+java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
+     dhopm.v1.cli.Main detail --dataset dataset\default.dat --parts 2 --top 3
+java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
+     dhopm.v1.cli.Main stream --dataset dataset\default.dat --parts 2
+java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
+     dhopm.v1.cli.Main golden
+java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
+     dhopm.v1.cli.Main inspect --dataset dataset\default.dat --top 3
 
 :: khảo sát benchmark
 java -cp "implementation\dhopm-bench\target\classes;implementation\dhopm-v1-standard\target\classes;implementation\dhopm-common\target\classes" ^
@@ -187,13 +205,20 @@ java -cp "implementation\dhopm-bench\target\classes;implementation\dhopm-v1-stan
 
 ```
 docs/
-  phases/P1-G1.md                     (mới) kế hoạch G1
+  phases/P1-G1.md                     (mới) kế hoạch G1 (+ G1-D7, M1/M5/M6 cập nhật)
   reports/G1-V1-STANDARD-BAOCAO.md    (mới) báo cáo này
+  plans/00-OVERALL-PLAN.md            (cập nhật) mục 4.2 giao tiếp CLI/API + quyết định D6
+  plans/01-STANDARD-VERSION-PLAN.md   (cập nhật) mục 4.2 bộ lệnh chuẩn, M5/M6 bổ sung
 implementation/
   pom.xml                             (sửa) <modules> += v1-standard, bench
-  dhopm-common/  contract: Phase, PhaseAwareEngine, PhaseListener, RunMetrics, TimedEngine
-                 util: TimingRecorder; (+ WorkerPool.invokeAll; GoldenAssert tolerance 1e-4)
+  dhopm-common/  contract: Phase, PhaseAwareEngine, PhaseListener, RunMetrics, TimedEngine,
+                 ProgressAwareEngine, MiningProgress, MiningProgressListener
+                 util: TimingRecorder; (WorkerPool.invokeAll 1-arg + callback 2-arg;
+                 GoldenAssert tolerance 1e-4)
   dhopm-v1-standard/  model·construction·metrics·reconstruction·dubo·mining·engine·cli
+                      cli: Main (dispatcher) + CliSupport + Mine/Detail/Stream/Golden/InspectCommand
+                      engine: MiningEngine + progress + getter chỉ đọc
                       + README.md, docs/{design,test-report,benchmark}.md, docs/golden-doubles-v1.json
+                      + test: CliCommandsTest (7)
   dhopm-bench/        benchmark/BenchmarkMain.java
 ```

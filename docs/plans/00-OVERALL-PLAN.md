@@ -25,6 +25,7 @@
 | 1.0 | Khởi tạo: chuẩn hóa thuật toán, khung threading, cấu trúc dự án, lộ trình 3 phiên bản |
 | 1.1 | Cập nhật dataset cục bộ (7 file FIMI, khớp benchmark); bổ sung cấu trúc Tài liệu & Workflow (SRS tổng thể, UI Layout, tài liệu riêng từng project engine, plan riêng từng giai đoạn), thêm giai đoạn G4 debug/compare app |
 | 1.2 | **Java 25** thay Java 17; chuyển toàn bộ tài liệu draft cũ (3 design, `Default Project/`, `draft/`) sang **branch `archive/legacy-draft`** và xóa khỏi main (ghi chú tại đây); V1 áp dụng **GoF**, V2 cân nhắc **cấu trúc vượt GoF** (không có thì theo plan), V3 không cần pattern; mỗi giai đoạn sản xuất **tài liệu cấu trúc & design từng thành phần/hàm** (V2/V3 kèm lý do chọn tối ưu + so V1); app = **3 module engine + UI module riêng**, chọn **≥1 engine** để so sánh, util chung (benchmark/thread/worker) chia sẻ cho cả 3, log/benchmark **độc lập với thuật toán** |
+| 1.3 | **Giao tiếp gỡ lỗi (mục 4.2 + quyết định D6):** công cụ (CLI, benchmark, debug app G4) **chỉ giao tiếp với module thuật toán qua API ổn định ở `dhopm-common`** (`Engine`, `PhaseAwareEngine`, `ProgressAwareEngine`, `TimedEngine`, `WorkerPool`, `Log`…), **cấm gọi vào nội bộ module từ bên ngoài**; CLI chuẩn hoá **bộ lệnh chung** cho cả 3 version (`mine/detail/stream/golden/inspect`) — động cơ: debug & so sánh cần nhiều dạng xuất khác nhau, và tương lai debug sẽ giao tiếp qua CLI/API thay vì gọi hàm trực tiếp |
 
 ---
 
@@ -205,6 +206,35 @@ Bản đồ tài liệu (layered):
 3. **Thiết kế theo giai đoạn:** V1 áp dụng **design pattern GoF** (thấy ở đâu hợp lý; không ép buộc từng pattern); V2 — nếu có **cấu trúc/kiến trúc/thiết kế tốt hơn GoF** thì áp dụng, nếu không thì thực hiện theo plan; V3 **không cần** (đã cực đoan sẵn).
 4. Mỗi module engine sản xuất **bộ tài liệu riêng** trong module của nó (README, design, test, report) — kết thúc giai đoạn chỉ được xem là xong khi đủ tài liệu theo tiêu chí hoàn thành.
 5. **Debug app (G4)** sửa đổi/thao tác chi tiết thuật toán → là **yêu cầu hệ thống** (đã ghi trong SRS mục 9) nhưng **plan/thiết kế chi tiết chỉ lập khi đến G4**. App chọn **≥1 engine** để chạy/so sánh (min 1 = chạy đơn); UI tách module riêng, có **loading/mining screen** để tránh freeze — chi tiết bàn khi làm app/UI.
+6. **Giao tiếp gỡ lỗi = API, không phải truy cập nội bộ (4.2):** mọi công cụ đều nói chuyện với engine qua giao diện có sẵn trong `dhopm-common`; mỗi version mở thêm giao diện mới khi cần (ví dụ "progress") nhưng **không vỡ API cũ**.
+
+### 4.2 Giao tiếp giữa công cụ và module thuật toán (CLI / API / gọi trực tiếp)
+
+> **Động cơ:** kinh nghiệm G1 cho thấy CLI xuất một dòng ngắn **không đủ để debug** (không biết từng phần chạy ra sao, không theo dõi mining). Đồng thời, tương lai công cụ gỡ lỗi sẽ **giao tiếp với module thuật toán qua CLI hoặc API thay vì gọi hàm trực tiếp** — nên nguyên tắc này phải được định nghĩa từ bây giờ, không đợi đến G4.
+
+**Nguyên tắc (bắt buộc, áp dụng cho cả 3 version):**
+
+| # | Nguyên tắc |
+|---|---|
+| P1 | Công cụ (CLI, `dhopm-bench`, debug/compare app G4) **không bao giờ truy cập vào bên trong module thuật toán** (model, internal class). Mọi thao tác đi qua **API ổn định** trong `dhopm-common.contract` + util chung. |
+| P2 | API mở gồm: `Engine` (`loadBatch`/`mineNow`), `PhaseAwareEngine` + `PhaseListener` (đo 3 pha), `ProgressAwareEngine` + `MiningProgressListener` (tiến trình mining thời gian thực), `TimedEngine` (đo thô 2 op), `MiningConfig`, result/patterns. Engine mở thêm **getter chỉ đọc** (stats) khi cần, không lộ cấu trúc. |
+| P3 | Tắt các listener/log → **zero/rất thấp overhead** (không làm hỏng số đo benchmark). |
+| P4 | **CLI là một dạng client của API** (cùng code path với G4) — cùng bộ lệnh cho cả 3 version để so sánh chéo công bằng. |
+| P5 | Bộ lệnh chuẩn hoá (mỗi version triển khai qua `Main` của version đó): |
+
+| Lệnh | Mục đích | Xuất |
+|---|---|---|
+| `mine` | Chạy thường, **tóm tắt ngắn** | 1 khối header + 1 dòng/part (tx, lastTid, 3 pha ms, patterns, heap) + dòng tổng |
+| `detail` | Debug chi tiết từng phần | Tách từng pha (đếm node/entry/root, ms), top-N mẫu theo DO (double đầy đủ) |
+| `stream` | **Log thời gian thực** | Dòng sự kiện load + tick tiến trình mining (root k/total, patterns, ms) có flush |
+| `golden` | Chạy TestKit TC1–TC8 qua engine | Báo cáo PASS/FAIL từng TC (P1-G1: M5 dùng lệnh này) |
+| `inspect` | Số liệu dataset/config **không mining** | tx, distinct items, avg/max len, Σ entries, minSup, top items theo support |
+
+| P6 | **Gộp nhiều nguồn xuất:** một lệnh có thể bật đồng thời nhiều channel (phase timing, progress, chi tiết pattern). Không trộn vào hot path. |
+
+**Ranh giới khi làm G1 (đã triển khai):** mở `ProgressAwareEngine` + `MiningProgressListener` trong `dhopm-common`; `WorkerPool.invokeAll(tasks, onTaskCompleted)` để báo tiến trình theo thứ tự task (gộp-sau-join giữ INV-E); CLI v1 = `dhopm.v1.cli.Main <command>` với đủ 5 lệnh.
+
+**Ghi chú G4 (sẽ chi tiết khi lập plan):** debug app cần thêm tương tác sâu (dừng/step, nhìn DHO-List) → mở **giao diện mới** trên cùng nguyên tắc P1–P3; không đục vào module.
 
 ---
 
@@ -317,6 +347,7 @@ Giai đoạn | Nội dung | Sản phẩm đầu ra | Chế độ chờ
 | D3 | Xử lý `Default Project/` + `draft/` cũ | **Đã lưu trữ trên branch `archive/legacy-draft` và xóa khỏi main**. Không tái sử dụng; không liên quan build |
 | D4 | Thread pool mặc định | = **`availableProcessors()`**; override qua CLI/config. **Ghi chú debug app (G4):** nên có option cho user chọn số thread `> 0` tùy ý (chỉ là option — cân nhắc khi làm debug app) |
 | D5 | Format input mặc định cho CLI/benchmark | **FIMI** (TID = số dòng) + **text** (TID tường minh) cho TC |
+| D6 | Giao tiếp công cụ-gỡ lỗi ↔ module thuật toán | **Chỉ qua API ổn định ở `dhopm-common`** (contract: `Engine`/`PhaseAwareEngine`/`ProgressAwareEngine`/`TimedEngine`; util: `WorkerPool`/`Log`); CLI = client của API với **bộ lệnh chuẩn `mine/detail/stream/golden/inspect`** (mục 4.2, P1–P6); cấm gọi nội bộ module từ ngoài |
 
 ---
 

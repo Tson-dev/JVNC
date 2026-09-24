@@ -1,92 +1,69 @@
 package dhopm.v1.cli;
 
-import dhopm.common.config.MiningConfig;
-import dhopm.common.contract.Phase;
-import dhopm.common.io.FimiTransactionReader;
-import dhopm.common.io.TextTransactionReader;
-import dhopm.common.transaction.Transaction;
-import dhopm.common.util.TimingRecorder;
-import dhopm.v1.engine.MiningEngine;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
+import java.util.Locale;
 
 /**
- * V1 command line driver. Incremental load ({@code --parts}): construction is incremental,
- * mining re-runs on each part — mirrors the canonical streaming demo.
+ * V1 CLI driver — dispatcher cho bộ lệnh chuẩn (G1-D7, plan tổng thể 4.2):
  *
  * <pre>
- *   --dataset &lt;fimi|text file&gt;
- *   --format  fimi (default, TID = line index) | text (explicit TID,item list)
- *   --partial &lt;∂ in [0,1], default 0.15&gt;
- *   --f      &lt;decay in (0,1], default 0.9&gt;
- *   --workers &lt;threads, default CPU count&gt;
- *   --parts  &lt;incremental chunks, default 1&gt;
+ *   dhopm.v1.cli.Main &lt;command&gt; [options]
+ *
+ *   mine     tóm tắt ngắn (1 dòng/part + tổng)            default khi gọi dạng cũ --dataset …
+ *   detail   chi tiết từng pha + top-N mẫu theo DO
+ *   stream   log thời gian thực (load + tick mining)
+ *   golden   TestKit TC1-TC8, in PASS/FAIL
+ *   inspect  thống kê dataset không mining
+ *
+ *   option: --dataset &lt;fimi|text&gt; --format fimi|text --partial ∂ --f f --workers n --parts n --top n
  * </pre>
+ *
+ * Cú pháp cũ {@code --dataset …} vẫn chạy (= lệnh {@code mine}).
  */
 public final class Main {
 
-    public static void main(String[] args) throws Exception {
-        String dataset = null;
-        String format = "fimi";
-        double partial = 0.15;
-        double f = 0.9;
-        int workers = MiningConfig.DEFAULT_WORKERS;
-        int parts = 1;
+    public static void main(String[] args) {
+        System.out.printf(Locale.ROOT, "JVNC | %s | %s%n", Runtime.version(), System.getProperty("os.name"));
+        int code;
+        try {
+            code = dispatch(args);
+        } catch (CliSupport.CliException e) {
+            System.err.println("error: " + e.getMessage());
+            System.err.println("run \"dhopm.v1.cli.Main help\" for usage.");
+            code = 2;
+        } catch (Exception e) {
+            System.err.println("unexpected error: " + e);
+            e.printStackTrace(System.err);
+            code = 3;
+        }
+        System.exit(code);
+    }
 
-        for (int i = 0; i + 1 < args.length; i += 2) {
-            switch (args[i]) {
-                case "--dataset" -> dataset = args[i + 1];
-                case "--format" -> format = args[i + 1];
-                case "--partial" -> partial = Double.parseDouble(args[i + 1]);
-                case "--f" -> f = Double.parseDouble(args[i + 1]);
-                case "--workers" -> workers = Integer.parseInt(args[i + 1]);
-                case "--parts" -> parts = Integer.parseInt(args[i + 1]);
-                default -> {
-                    System.err.println("unknown argument: " + args[i]);
-                    System.exit(2);
+    /** Package-private for tests (command dispatch returns the exit code, no System.exit). */
+    static int dispatch(String[] args) throws CliSupport.CliException {
+        if (args.length == 0) {
+            System.out.println("missing command.");
+            System.out.println(CliSupport.usages());
+            return 2;
+        }
+        String first = args[0];
+        return switch (first) {
+            case "help", "-h", "--help" -> {
+                System.out.println(CliSupport.usages());
+                yield 0;
+            }
+            case "mine" -> new MineCommand().run(args, 1);
+            case "detail" -> new DetailCommand().run(args, 1);
+            case "stream" -> new StreamCommand().run(args, 1);
+            case "golden" -> new GoldenCommand().run(args, 1);
+            case "inspect" -> new InspectCommand().run(args, 1);
+            default -> {
+                if (first.startsWith("--")) { // cú pháp cũ → mine
+                    yield new MineCommand().run(args, 0);
                 }
+                System.out.println("unknown command: " + first);
+                System.out.println(CliSupport.usages());
+                yield 2;
             }
-        }
-        if (dataset == null || parts < 1) {
-            System.err.println("usage: --dataset <file> [--format fimi|text] [--partial ∂] [--f f] [--workers n] [--parts n]");
-            System.exit(2);
-        }
-
-        Path path = Paths.get(dataset);
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("dataset not found: " + path);
-        }
-
-        List<Transaction> all = switch (format) {
-            case "fimi" -> new FimiTransactionReader(path).toList();
-            case "text" -> new TextTransactionReader(path).toList();
-            default -> throw new IllegalArgumentException("unknown format: " + format);
         };
-        if (all.isEmpty()) {
-            throw new IllegalArgumentException("empty dataset: " + path);
-        }
-
-        MiningConfig config = new MiningConfig(partial, f, MiningConfig.DEFAULT_EPSILON, workers);
-        TimingRecorder rec = new TimingRecorder();
-
-        try (MiningEngine engine = new MiningEngine(config)) {
-            engine.setPhaseListener(rec);
-            System.out.println("part,loaded,last_tid,construction_ms,reconstruction_ms,mining_ms,total_ms,patterns,heap_mb");
-            int from = 0;
-            int per = (all.size() + parts - 1) / parts;
-            for (int p = 1; from < all.size(); p++) {
-                int to = Math.min(from + per, all.size());
-                engine.loadBatch(all.subList(from, to));
-                var r = engine.mineNow();
-                System.out.println(p + "," + r.totalTransactions() + "," + r.lastTid() + ","
-                        + rec.phaseMs(Phase.CONSTRUCTION) + "," + rec.phaseMs(Phase.RECONSTRUCTION) + ","
-                        + rec.phaseMs(Phase.MINING) + "," + rec.totalMs() + "," + r.patterns().size() + ","
-                        + (rec.peakHeapBytes() / 1048576.0));
-                from = to;
-            }
-        }
     }
 }

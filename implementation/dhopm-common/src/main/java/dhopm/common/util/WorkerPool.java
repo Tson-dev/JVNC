@@ -8,6 +8,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 /**
  * Shared worker-pool wrapper (scaffold at G0, used from G1+).
@@ -71,8 +72,15 @@ public final class WorkerPool implements AutoCloseable {
     /**
      * Runs all tasks, waits for completion, and collects results <em>in task order</em>
      * (merge-after-join, deterministic). Rethrows the first task failure.
+     * Invokes {@code onTaskCompleted} with the 1-based completed index and its result
+     * as each task finishes — real-time progress without touching run order (INV-E).
      */
     public <T> List<T> invokeAll(List<Callable<T>> tasks) {
+        return invokeAll(tasks, null);
+    }
+
+    /** @see #invokeAll(List) — overlaid with a per-task completion callback. */
+    public <T> List<T> invokeAll(List<Callable<T>> tasks, BiConsumer<Integer, T> onTaskCompleted) {
         if (tasks.isEmpty()) {
             return List.of();
         }
@@ -84,10 +92,14 @@ public final class WorkerPool implements AutoCloseable {
             throw new IllegalStateException("interrupted while invoking workers", e);
         }
         List<T> results = new ArrayList<>(futures.size());
+        for (int i = 0; i < futures.size(); i++) {
+            results.add(null);
+        }
         RuntimeException failure = null;
-        for (Future<T> f : futures) {
+        for (int i = 0; i < futures.size(); i++) {
+            T value = null;
             try {
-                results.add(f.get());
+                value = futures.get(i).get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("interrupted while awaiting workers", e);
@@ -95,7 +107,10 @@ public final class WorkerPool implements AutoCloseable {
                 if (failure == null) {
                     failure = new IllegalStateException("worker task failed", e.getCause());
                 }
-                results.add(null);
+            }
+            results.set(i, value);
+            if (onTaskCompleted != null) {
+                onTaskCompleted.accept(i + 1, value);
             }
         }
         if (failure != null) {

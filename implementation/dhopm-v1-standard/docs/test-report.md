@@ -7,8 +7,8 @@ Cập nhật lần cuối: chạy `cmd /c run.bat -q` (JDK 25.0.4.1, Maven 3.9.1
 | Nguồn | Lượng test | Lỗi |
 |---|---|---|
 | dhopm-common (G0, base: reader/config/testkit/worker) | 29 | 0 |
-| dhopm-v1-standard | 17 | 0 |
-| **Tổng** | 46 | 0 |
+| dhopm-v1-standard | 27 | 0 |
+| **Tổng** | 56 | 0 |
 
 ## Đếm test đồng thuận theo bài toán vàng (Golden)
 
@@ -25,7 +25,7 @@ TC7 f=0.9 ∂=0.15 minSup=1.5 -> 9/9
 TC8 f=0.9 ∂=0.30 minSup=1.5 -> 1/1   (A=2.4661)
 ```
 
-## Nhóm test v1 (17)
+## Nhóm test v1 (27)
 
 - **DHOListBuilderTest (4)** — thứ tự tạo nút + entry TID-tăng (INV-B); INV-A fail-fast
   (giảm TID, trùng TID); stream rỗng.
@@ -40,11 +40,19 @@ TC8 f=0.9 ∂=0.30 minSup=1.5 -> 1/1   (A=2.4661)
 - **IncrementalTest (2)** — load 2 phần == load đủ (cùng TL/minSup) từng bit; TC6 đúng
   (chỉ DB0 4 giao dịch).
 - **GoldenDoublesSnapshotTest (1)** — sinh `docs/golden-doubles-v1.json` (double chính xác).
+- **CliCommandsTest (10)** — 5 lệnh chuẩn chạy trên dataset FIMI tạm (mine/detail/stream/
+  golden/inspect); lệnh cũ `--dataset …` = `mine`; lệnh lạ → exit 2. Kiểm tra lệnh `stream`
+  xuất tick tiến trình đồng thời chứng minh bật `MiningProgressListener` không đổi kết quả
+  (INV-E, xác nhận `golden` = 8/8 PASS). `--limit` đúng 3 hành vi: dừng sau đúng n giao dịch
+  (đánh dấu "stopped after reading"), dataset nhỏ hơn n → đọc hết (đánh dấu "whole dataset
+  read", limit bỏ qua), limit âm → bị chặn.
 
 ## Cải tiến hiệu năng không đổi kết quả
 
 - Bỏ partner có `support < minSup` trước khi giao (Miner.process) — kiểm chứng bằng
   DeterminismTest + Golden (toàn bộ TC vẫn bit-giống hệt).
+- API tiến trình (`MiningProgressListener`) chỉ kích hoạt khi set — `mine`/`detail` không
+  bị chậm thêm; đối chiếu bằng CliCommandsTest (kết quả `mine` ≡ `stream`).
 
 ## Cách chạy lại
 

@@ -20,10 +20,31 @@ Tuân theo tài liệu kế hoạch `docs/plans/00-OVERALL-PLAN.md` (đặc tả
 - **Template Method**: ngầm trong `MiningEngine` (pipeline cố định, khác nhau ở các
   khối công thức) — tách riêng `MiningEngine`/`Miner` để kế thừa-trên-khung dễ dàng.
 - **Facade**: `MiningEngine` ẩn toàn bộ pipeline sau giao diện kiến trúc
-  `Engine`/`PhaseAwareEngine` (common).
+  `Engine`/`PhaseAwareEngine`/`ProgressAwareEngine` (common).
 - **Decorator**: `TimedEngine` (common) đo thời gian mà không sửa engine.
 - **Observer**: `PhaseListener` (common) nhận sự kiện đầu/cuối pha; `TimingRecorder`
-  (common) tích lũy ms/heap. Engine chỉ gọi khi có listener (chi phí 0 khi không dùng).
+  (common) tích lũy ms/heap; `MiningProgressListener` + `MiningProgress` (common) nhận
+  tick tiến trình mining. Engine chỉ gọi khi có listener (chi phí 0 khi không dùng).
+
+## API mở cho công cụ (plan 00 mục 4.2 — CLI / API / gọi trực tiếp)
+
+Mọi công cụ (CLI V1, `dhopm-bench`, debug app G4) nói chuyện với engine **chỉ qua API
+ổn định trong `dhopm-common`** và getter chỉ đọc của `MiningEngine` — không lộ cấu trúc
+nội bộ (quyết định tổng thể D6).
+
+| Giao diện (common) | Mục đích |
+|---|---|
+| `Engine` | `loadBatch` / `mineNow` — chạy đủ pipeline |
+| `PhaseAwareEngine` + `PhaseListener` | đo 3 pha (CONSTRUCTION / RECONSTRUCTION / MINING), nuôi `TimingRecorder` |
+| `ProgressAwareEngine` + `MiningProgressListener` + `MiningProgress` | tick tiến trình mining (root-task xong, patterns, ms) — dùng cho CLI `stream`, G4 loading screen |
+| `TimedEngine` | decorator đo thô 2 op (nếu muốn không chạm engine) |
+| `WorkerPool.invokeAll(tasks, onCompleted)` | callback tiến trình theo thứ tự task — gộp-sau-join giữ INV-E |
+
+Getter chỉ đọc của `MiningEngine`: `globalNodeCount()`, `globalEntryCount()`,
+`totalLoaded()`, `lastTid()`, `lastMiningTasks()`.
+
+Bật listener KHÔNG đổi kết quả (INV-E) — chỉ thêm gọi callback ngoài luồng hot path
+(giao `partial` từ task, `config` từ đối số) và đo `System.nanoTime` thô ngay ngoài công việc.
 
 ## Quyết định chính (ánh xạ G1-D*)
 
@@ -38,6 +59,10 @@ Tuân theo tài liệu kế hoạch `docs/plans/00-OVERALL-PLAN.md` (đặc tả
 - **G1-D5 `TimedEngine` ở dhopm-common** — timing không phụ thuộc thuật toán.
 - **G1-D6 snapshot `docs/golden-doubles-v1.json`** — do `GoldenDoublesSnapshotTest`
   sinh ra (độ chính xác máy: `Double.toString` round-trip), làm tham chiếu cho V2/V3.
+- **G1-D7 CLI đa lệnh + SPI tiến trình** — `cli` class `Main` + `CliSupport`
+  (bộ lệnh `mine/detail/stream/golden/inspect`); `MiningEngine` implement
+  `ProgressAwareEngine` (đổ `MiningProgress` theo root task qua `WorkerPool.invokeAll(tasks, callback)`).
+  Cú pháp cũ `--dataset …` = lệnh `mine` (tương thích). Chi tiết bảng lệnh ở README.
 
 ## Bất biến lập trình
 

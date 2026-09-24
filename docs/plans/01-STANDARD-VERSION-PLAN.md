@@ -76,6 +76,28 @@ V1 **áp dụng design pattern GoF** ở những chỗ hợp lý (không ép t�
 
 > **Quan trọng:** dùng GoF để đạt "đúng & dễ hiểu", đồng thời tạo ranh giới module hoá cho V2 (điểm sửa đổi) và cho debug app G4 (wrapper đo tiến trình). Không tối ưu sớm lấy những pattern rườm rà.
 
+### 4.2 CLI & kênh giao tiếp với công cụ (V1 — quyết định D6, xem 00 mục 4.2)
+
+V1 là version đầu tiên làm đủ bộ lệnh chuẩn — vừa phục vụ G1 benchmark sơ bộ, vừa là
+**khuôn mẫu** cho V2/V3 (đảm bảo so sánh chéo công bằng). Nguyên tắc: **CLI chỉ dùng API
+mở trong `dhopm-common`**, không chạm nội bộ thuật toán.
+
+| Lệnh | Ý nghĩa V1 |
+|---|---|
+| `mine` | Xuất tóm tắt ngắn (mặc định khi gọi `Main --dataset …` như cũ) |
+| `detail` | Chi tiết từng pha: nodes/entries/roots + ms + top-N mẫu theo DO (double đầy đủ) |
+| `stream` | Log thời gian thực: sự kiện load + tick mining (qua `ProgressAwareEngine`) |
+| `golden` | Chạy TestKit TC1–TC8 báo PASS/FAIL |
+| `inspect` | Thống kê dataset/config không mining |
+
+API mở cho tool: `Engine`, `PhaseAwareEngine`+`PhaseListener` (3 pha), `ProgressAwareEngine`+
+`MiningProgressListener` (tiến trình thời gian thực), `TimedEngine`, getter chỉ đọc của
+`MiningEngine` (node/entry/root count, total, lastTid). Khi tắt listener → zero-overhead (P3).
+
+Option `--limit <n>` trên mọi lệnh đọc dataset: đọc **tối đa n giao dịch đầu** rồi dừng/mine
+(đọc lười, không nạp file 1M+ vào RAM) — cần cho kosarak ~1M tx; dataset nhỏ hơn n → đọc hết
+và in marker "whole dataset read (limit ignored)". Mặc định 0 = đọc hết như cũ.
+
 ## 5. Khung Threading Level 1 (bắt buộc)
 
 ```
@@ -128,10 +150,11 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 - [ ] GoldenRunner chạy TC1–TC8 → pass (so tolerance 1e-6 với bảng; ghi lại **actual double** làm golden cho V2).
 - [ ] Determinism: chạy lại nhiều lần (đổi pool size 1/2/4/cpu) → cùng kết quả.
 - [ ] Xác nhận **log/benchmark độc lập**: bật/tắt logging không làm đổi kết quả; khi tắt log không ghi nhận chi phí đáng kể (Decorator ở contract, không ở hot path).
+- [ ] CLI đa lệnh (4.2) chạy được trên cùng dataset: `mine/detail/stream/golden/inspect`; progress listener không đổi kết quả (INV-E).
 
 **M6 – Benchmark sơ bộ & bộ tài liệu project V1**
 - [ ] Chạy 2 dataset đại diện từ `dataset/` – `mushroom.dat` (dense, ∂=6%) và `retail.dat` (sparse, ∂=0.1%), chia 5 phần incremental; ghi runtime 3 giai đoạn + peak memory.
-- [ ] **Bộ tài liệu riêng của project `dhopm-v1-standard`** (đặt trong module): README (chạy/tham số), design tóm tắt, test plan & kết quả TC1–TC8, benchmark report sơ bộ.
+- [ ] **Bộ tài liệu riêng của project `dhopm-v1-standard`** (đặt trong module): README (chạy/tham số/CLI đa lệnh), design tóm tắt (kèm API mở 4.2), test plan & kết quả TC1–TC8, benchmark report sơ bộ.
 - [ ] Đóng dấu: V1 là **golden reference** cho V2/V3.
 
 ## 7. Nghiệm thu & Tiêu chí "Done" (V1)
@@ -140,6 +163,7 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 - [ ] Determinism qua nhiều pool size.
 - [ ] Threading Level 1 thực sự được dùng (không phải đơn luồng ẩn) — xác nhận qua log/số task.
 - [ ] Không có race (chạy `-ea`, nhiều lần; hoặc sanity check đơn giản).
+- [ ] Chạy (hoặc test) **bộ lệnh CLI chuẩn** `mine/detail/stream/golden/inspect` trên `dhopm-v1-standard`; cùng kết quả khi bật/tắt progress listener (INV-E).
 - [ ] Benchmark sơ bộ ghi được số liệu.
 - [ ] Bộ tài liệu project V1 đầy đủ (M6).
 
