@@ -1,0 +1,44 @@
+Đây là Draft ghi ý tưởng và giải quyết plan liên quan đến plan 04-BACKEND-CLIAPI-PLAN gọi tắt là CLI plan
+Draft này dùng để tác giả backend cung cấp ý tưởng cũng như sửa lỗi trong CLI plan.
+Draft này cũng sẽ được xóa nếu như tác giả đã đồng ý hoặc hết ý tưởng cho CLI plan.
+từ "module" hoặc "service" hãy coi là một, vì ý tưởng còn mơ hồ nên tác giả chưa thể quyết định nên coi đây là module hay service hoặc cái tên khác.
+
+
+- Về CLI:
+{
+1. Nó phải có config
+2. CLI phải sửa được chính config của chính Nó
+3. các CLI phải có lệnh info, lệnh này sẽ cho biết CLI này là gì, làm gì, có gì và có thể làm gì.
+info sẽ cung cấp thông tin về service được gọi lệnh info lên.
+ngoài ra sẽ có lệnh khác như version, module --list, ... nếu cần thiết.
+lệnh info là trả về thông tin tỉnh, ví dụ như gọi info thông qua CLI của controller thì nó chỉ đưa thông tin về controller, không có thông tin như controller đang liên kết với module nào khác, quản lý module nào
+4. thay vì CLI gõ lệnh và điền thông tin cụ thể, config sẽ lưu một phần thông tin.
+ở đây sẽ có 3 cái là default, config và 
+
+
+Tổng quan lại thì manager sẽ theo hướng là hydrid giữa microkernel aka plug-in architecture + microservice, vì thế nó không nhất thiết phải có mở port local cho từng thuật toán.
+Vì sao lại phải hydrid giữa hai kiến trúc Microkernel sẽ giải quyết cho vấn đề liên quan đến sự mở rộng còn microservice sẽ giải quyết về việc chạy đọc lập.
+
+
+vì ý tưởng trên khá là lớn, nên khi đưa vào plan sẽ phải tách ra, tôi nghĩ là giai đoạn đầu là hiện tại chỉ cần gọi trực tiếp thuật toán là được, còn việc theo kiến trúc mới thì hãy để nó phát triển cùng với khi làm quản lý tài nguyên.
+
+
+}
+
+Về hệ thống:
+{
+1. Hệ thống phải có recovery, giả sử khi đang mining thì vô tình hệ thống ngưng hoạt động, khi khởi động lại thì nó phải có thông tin là trước đó nó đang làm gì
+2. Hệ thống phải điều chỉnh được về khả năng dùng dữ liệu, ví dụ như nó chỉ nên dùng ở mức 40% CPU (% ở đây đại khái)
+}
+
+ý tưởng flow phía backend:
+{
+1. frontend sẽ giao tiếp với controller/manager CLI thông qua remote.
+remote là phần kết nối với cổng/internet, tức là frontend sẽ giao tiếp với remote, remote sẽ liên quan các vấn đề như duy trì kết nối, đảm bảo đủ dữ liệu và các vấn đề liên quan đến client-server
+theo tôi thì hiện tại cũng chưa cần remote vì project chưa quá phức tạp nên hiện tại chỉ cần 1 remote đơn giản mở cổng local là được, về giao tiếp thì sẽ giao gửi qua lại bằng json, về tính bảo toàn dữ liệu thì vì chạy LAN nên không cần quá quan tâm
+2. CLI sẽ chia việc ra và không gọi trực tiếp, nó sẽ gọi CLI của các thuật toán tương ứng
+Lý do là controller sẽ không biết có bao nhiêu version hay thuật toán, tức là mỗi thuật toán sẽ phải đăng ký lên controller.
+3. Thuật toán chạy và xử lý data bằng những worker nó được đưa.
+theo tôi thì thuật toán không thực sự làm mà worker làm, nên thuật toán sẽ giống như chỉ worker hơn là thuật toán làm.
+điều này sẽ dẫn đến về phức tạp trong việc quản lý worker, nên để sau.
+}

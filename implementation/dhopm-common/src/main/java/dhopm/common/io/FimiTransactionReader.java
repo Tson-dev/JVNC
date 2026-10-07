@@ -4,6 +4,8 @@ import dhopm.common.transaction.Transaction;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +15,9 @@ import java.util.NoSuchElementException;
 /**
  * FIMI format reader: one transaction per line, items are whitespace-separated integers.
  * {@code TID = 1-based transaction counter} (blank lines and lines starting with {@code #} are skipped).
+ *
+ * <p>Accepts a {@link Path} or a raw {@link InputStream}; the stream form is what lets ZIP-packaged
+ * datasets reuse the exact same parsing without extracting to disk first.
  */
 public final class FimiTransactionReader implements TransactionSource {
 
@@ -23,6 +28,11 @@ public final class FimiTransactionReader implements TransactionSource {
 
     public FimiTransactionReader(Path path) throws IOException {
         reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+        advance();
+    }
+
+    public FimiTransactionReader(InputStream in) {
+        reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         advance();
     }
 

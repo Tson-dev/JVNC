@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Regenerates the dataset statistics table (OVERALL-PLAN 5.2) from the actual files
  * and asserts they still match. Also guarantees every dataset is readable by the FIMI reader
- * and explicitly validates scalability source kosarak.
+ * and explicitly validates the scalability sources (kosarak, chainstore).
  */
 class DatasetValidationTest {
 
@@ -24,10 +24,13 @@ class DatasetValidationTest {
     }
 
     private static final List<Expected> TABLE = List.of(
+            new Expected("accidents.dat", 340_183, 468, 33.81),
+            new Expected("chainstore.dat", 1_112_949, 46_086, 7.23),
             new Expected("chess.dat", 3_196, 75, 37.0),
             new Expected("connect.dat", 67_557, 129, 43.0),
             new Expected("kosarak.dat", 990_002, 41_270, 8.1),
             new Expected("mushroom.dat", 8_124, 119, 23.0),
+            new Expected("newMushroom.dat", 8_416, 119, 23.0),
             new Expected("pumsb.dat", 49_046, 2_113, 74.0),
             new Expected("pumsb_star.dat", 49_046, 2_088, 50.5),
             new Expected("retail.dat", 88_162, 16_470, 10.3));
@@ -37,7 +40,7 @@ class DatasetValidationTest {
     }
 
     @Test
-    void allSevenDatasetsMatchTable52() throws IOException {
+    void allTenDatasetsMatchTable52() throws IOException {
         Path dir = datasetDir();
         assertTrue(Files.isDirectory(dir), "dataset dir not found: " + dir);
         for (Expected e : TABLE) {
@@ -71,5 +74,12 @@ class DatasetValidationTest {
         Path file = datasetDir().resolve("kosarak.dat");
         long first = new FimiTransactionReader(file).streamPositions(990_000);
         assertTrue(first >= 990_000, "kosarak must support 200K..990K scalability window");
+    }
+
+    @Test
+    void chainstoreIsLoadedForScalability() throws IOException {
+        Path file = datasetDir().resolve("chainstore.dat");
+        long first = new FimiTransactionReader(file).streamPositions(1_100_000);
+        assertTrue(first >= 1_100_000, "chainstore must support 200K..1.1M scalability window");
     }
 }

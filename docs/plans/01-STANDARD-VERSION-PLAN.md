@@ -1,24 +1,35 @@
-# DHOPM – Kế hoạch Phiên bản 1: Standard
+# DHOPM – Kế hoạch Phiên bản 1: Standard (Oracle – bám sát paper)
 
 > Phiên bản "làm đúng trước, làm nhanh sau": code **rõ ràng, dễ đọc, dễ bảo trì**, tuân 100% chuẩn hóa thuật toán ở plan tổng thể (mục 2), dùng **Thread + worker mức Level 1**, NFR tối thiểu.
+>
+> ⚠️ **V1 là ORACLE — luôn ở trạng thái `ε = 0` (không cửa sổ).** V1 *không* triển khai cửa sổ ε; nó chính là **mốc đối chiếu** mà V2/V3/V4 phải khớp tuyệt đối khi `ε = 0` (bất biến **INV-I**). Xem `00-OVERALL-PLAN.md` §2.3, §2.9.
 
 ## Document Header
 
 | Mục | Giá trị |
 |---|---|
 | **Document ID** | DHOPM-PLAN-001 |
-| **Version** | 1.0 (Draft) |
-| **Phụ thuộc** | `00-OVERALL-PLAN.md` (chuẩn hóa thuật toán C1–C6, khung threading) |
+| **Version** | 1.1 (Draft) |
+| **Phụ thuộc** | `00-OVERALL-PLAN.md` (chuẩn hóa thuật toán **C1–C12**, khung threading) |
 | **Source** | `docs/root/1-s2_0-S095219762600792X-main.md`, `docs/root/Nhom01_VDChayTay.md` |
+| **Trạng thái** | ✅ **Đã hiện thực (G1)** — đóng băng làm oracle |
+
+### Revision History
+
+| Phiên bản | Mô tả |
+|---|---|
+| 1.0 | Lập plan V1 (C1–C6) |
+| **1.1** | Đồng bộ với plan tổng thể **v2.0**: tham chiếu C1–**C12**, khai báo rõ **V1 = oracle ở `ε = 0`** (INV-I), đổi tên `epsilon` → `ε_cmp` (`epsilonCmp`), thêm nghĩa tròn & trần DO, thêm `TC9–TC18` làm bộ hồi quy của các phiên bản sau |
 
 ---
 
 ## 1. Mục tiêu
 
-1. Cài đặt đúng DHOPM theo canonical spec → **qua TC1–TC8**.
+1. Cài đặt đúng DHOPM theo canonical spec → **qua TC1–TC8** (với `ε = 0`).
 2. Dùng **Thread + worker** (Level 1): Reconstruction song song theo node; Mining song song theo cây con gốc.
-3. Đạt **tập DOP trùng golden** và làm **nền golden double đầy đủ** cho V2 so sánh sau này.
+3. Đạt **tập DOP trùng golden** và làm **nền golden double đầy đủ** cho V2/V3/V4 so sánh sau này.
 4. NFR tối thiểu: đúng, ổn định, tái lập (deterministic), thread-safe.
+5. **Cung cấp "chân lý" cho hệ cửa sổ ε**: mọi tính toán của V2+ khi `ε = 0` phải khớp V1 **bit-for-bit** (INV-I).
 
 ## 2. Phạm vi & Ngoài phạm vi
 
@@ -28,10 +39,13 @@
 - Level 1 threading.
 - TC1–TC8 + benchmark cơ bản (runtime/memory sơ bộ).
 
+**Ghi chú về ε:** V1 **luôn dùng `ε = 0`** ⇒ `W = ∞` ⇒ không có GĐ0 (cửa sổ & evict), không handle 2 tầng, `minSup = ∂ × TL` (một giai đoạn). V1 vẫn dùng chung `dhopm-common.window.WindowMath` để **in cảnh báo miền `∂` khả thi** mà **không đổi hành vi** — cảnh báo không được làm thay đổi tập DOP.
+
 **Ngoài phạm vi (để dành V2/V3):**
 - Tối ưu cấu trúc dữ liệu (List vs Set, ID+name, primitive array).
 - Construction song song, work-stealing, chia cây sâu.
 - Bất kỳ mẹo tối ưu nào làm giảm độ rõ ràng.
+- **Cửa sổ ε, handle 2 tầng, evict O(1), minSup 2 pha, bound `min(DUBO, Z(X))`** → thuộc V2 (xem `02-EPSILON-WINDOW-VERSION-PLAN.md`).
 
 ## 3. NFR (tối thiểu)
 
@@ -53,13 +67,14 @@
 - **Metrics**: các hàm thuần `decayFactor(f, tl, tid)`, `occupancy`, `dampedOccupancy`.
 - **DUBO**: nhóm entry theo length dùng `TreeMap<Integer, int[2]>` (count, lastTid) hoặc nhóm tương đương; theo C1.
 - **ConditionalListBuilder**: two-pointer trên 2 danh sách entry đã sắp TID.
-- **Miner**: DFS đệ quy theo canonical; so sánh dùng ε (C4).
+- **Miner**: DFS đệ quy theo canonical; so sánh dùng `ε_cmp` (`epsilonCmp`, C4).
 - **Engine** (`MiningEngine`): `loadBatch`, `mineNow` theo pipeline.
 
 ### Quy ước dùng chung bắt buộc từ canonical
 - Entry append theo TID tăng dần (INV-B).
 - DO/DUBO một node luôn tính tuần tự (C5).
 - Conditional list không sort (INV-D).
+- **`ε = 0` ⇒ `W = ∞` ⇒ không evict, ghi mọi entry** ⇒ V1 là trường hợp riêng của chính thuật toán cửa sổ (không phải thuật toán khác).
 
 ### 4.1 Áp dụng Design Pattern GoF (bắt buộc cho V1)
 
@@ -89,6 +104,8 @@ mở trong `dhopm-common`**, không chạm nội bộ thuật toán.
 | `stream` | Log thời gian thực: sự kiện load + tick mining (qua `ProgressAwareEngine`) |
 | `golden` | Chạy TestKit TC1–TC8 báo PASS/FAIL |
 | `inspect` | Thống kê dataset/config không mining |
+
+> Các lệnh `window`, `validate`, `sweep` (mục 4.2 của plan tổng thể) là **đặc thù cửa sổ ε** ⇒ V1 chỉ chạy được `validate`/`window` ở chế độ thông báo (`ε = 0 ⇒ W = ∞`). Phần đầy đủ triển khai ở V2.
 
 API mở cho tool: `Engine`, `PhaseAwareEngine`+`PhaseListener` (3 pha), `ProgressAwareEngine`+
 `MiningProgressListener` (tiến trình thời gian thực), `TimedEngine`, getter chỉ đọc của
@@ -148,23 +165,26 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 
 **M5 – Nghiệm thu đúng đắn**
 - [ ] GoldenRunner chạy TC1–TC8 → pass (so tolerance 1e-6 với bảng; ghi lại **actual double** làm golden cho V2).
+- [ ] **TC1–TC8 chạy với `ε = 0`** — đây là hình thức xác nhận rằng bộ test không bao giờ vô tình kích hoạt cửa sổ.
 - [ ] Determinism: chạy lại nhiều lần (đổi pool size 1/2/4/cpu) → cùng kết quả.
 - [ ] Xác nhận **log/benchmark độc lập**: bật/tắt logging không làm đổi kết quả; khi tắt log không ghi nhận chi phí đáng kể (Decorator ở contract, không ở hot path).
 - [ ] CLI đa lệnh (4.2) chạy được trên cùng dataset: `mine/detail/stream/golden/inspect`; progress listener không đổi kết quả (INV-E).
 
 **M6 – Benchmark sơ bộ & bộ tài liệu project V1**
-- [ ] Chạy 2 dataset đại diện từ `dataset/` – `mushroom.dat` (dense, ∂=6%) và `retail.dat` (sparse, ∂=0.1%), chia 5 phần incremental; ghi runtime 3 giai đoạn + peak memory.
+- [ ] Chạy 2 dataset đại diện từ `dataset/` – `mushroom.dat` (dense) và `retail.dat` (sparse), chia 5 phần incremental; ghi runtime 3 giai đoạn + peak memory.
+- [ ] Ghi lại **số liệu "oracle"**: runtime, peak memory, số DOP tại `mushroom.dat (∂=6%)` và `retail.dat (∂=0.1%)` với `f=0.9` — đây là **denominator** cho bảng ablation V1→V4 (plan tổng thể §7).
 - [ ] **Bộ tài liệu riêng của project `dhopm-v1-standard`** (đặt trong module): README (chạy/tham số/CLI đa lệnh), design tóm tắt (kèm API mở 4.2), test plan & kết quả TC1–TC8, benchmark report sơ bộ.
-- [ ] Đóng dấu: V1 là **golden reference** cho V2/V3.
+- [ ] Đóng dấu: V1 là **golden reference / oracle** cho V2/V3/V4 (INV-I).
 
 ## 7. Nghiệm thu & Tiêu chí "Done" (V1)
 
 - [ ] TC1–TC8 pass.
+- [ ] **V1 được đóng băng** — mọi thay đổi sau này đều phải giữ TC1–TC8 xanh; không sửa golden để "cho xanh".
 - [ ] Determinism qua nhiều pool size.
 - [ ] Threading Level 1 thực sự được dùng (không phải đơn luồng ẩn) — xác nhận qua log/số task.
 - [ ] Không có race (chạy `-ea`, nhiều lần; hoặc sanity check đơn giản).
 - [ ] Chạy (hoặc test) **bộ lệnh CLI chuẩn** `mine/detail/stream/golden/inspect` trên `dhopm-v1-standard`; cùng kết quả khi bật/tắt progress listener (INV-E).
-- [ ] Benchmark sơ bộ ghi được số liệu.
+- [ ] Benchmark sơ bộ ghi được số liệu (mục 7 của plan tổng thể).
 - [ ] Bộ tài liệu project V1 đầy đủ (M6).
 
 ## 8. Rủi ro (V1)
@@ -172,10 +192,12 @@ Construction: ĐƠN LUỒNG (không chia batch) — tránh race, giữ INV-B.
 | Rủi ro | Xử lý |
 |---|---|
 | Kết quả lệch moốt chữ số thập phân so với bảng 4 chữ số | So golden với tolerance 1e-6; kiểm tra lại bằng công thức canonical (C1–C4) |
-| Race khi gộp kết quả Mining | Gộp sau khi join (đơn giản nhất), GiSao đó mới cân nhắc concurrent set |
+| Race khi gộp kết quả Mining | Gộp sau khi join (đơn giản nhất); sau đó mới cân nhắc concurrent set |
 | Hiểu sai C2 (skip node khi sup<minSup) | Đối chiếu pseudocode Mine + hành vi G trong chạy tay |
-| Recursion sâu (DFS) gây stack overflow ở dataset lớn | V1 ghi nhận; V2 xử lý (đổi ranh giới/stack task). Dataset benchmark nhỏ trước |
+| Recursion sâu (DFS) gây stack overflow ở dataset lớn | V1 ghi nhận; V2/V3 xử lý (đổi ranh giới/stack task). Dataset benchmark nhỏ trước |
+| **V1 bị "vô tình" sửa để phục vụ V2 (mất vai trò oracle)** | INV-I + CI bắt TC1–TC8 phải xanh ở **mọi** phiên bản; không sửa golden của V1 |
+| **`ε` bị hiểu nhầm là `ε_cmp`** | Tách tên ngay từ V1: `epsilon` = cửa sổ (luôn `0` ở V1), `epsilonCmp` = sai số so sánh (1e-9) |
 
 ---
 
-*Kết thúc plan V1. Đi tiếp `02-OPTIMIZED-VERSION-PLAN.md`.*
+*Chi tiết thuật toán: `00-OVERALL-PLAN.md` §2 (C1–C12, INV-A…INV-J). Đi tiếp `02-EPSILON-WINDOW-VERSION-PLAN.md`.*

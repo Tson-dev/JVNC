@@ -40,7 +40,7 @@ java -cp "implementation\dhopm-v1-standard\target\classes;implementation\dhopm-c
 | `golden` | TestKit TC1–TC8 qua engine, in PASS/FAIL (nghiệm thu M5) | `Main golden` |
 | `inspect` | Thống kê dataset/config, không mining | `Main inspect --dataset dataset\default.dat --top 3` |
 
-Options: `--dataset <file>` `--format fimi|text` `--partial ∂` `--f f` `--workers n` `--parts n` `--top n`
+Options: `--dataset <file>` (bắt buộc extension) `--format fimi|text` `--partial ∂` `--f f` `--workers n` `--parts n` `--top n`
 `--limit <n>`.
 Cần `dhopm-common` và `dhopm-v1-standard` trên classpath. Xem `Main help` trong lúc chạy.
 
@@ -49,6 +49,21 @@ dataset rất lớn (kosarak ~1M tx): không phải đọc/mine hết. Bỏ `--l
 như cũ. Nếu dataset có ít hơn n giao dịch thì **đọc hết dataset** và in dấu đánh dấu
 (`note: limit=n ignored - whole dataset read (…)`) — limit tự bỏ qua.
 
+**Đường dẫn `--dataset` bắt buộc có extension** (`DatasetFile.requireSupported`):
+
+| Extension | Cách mở |
+|---|---|
+| `.dat` `.txt` `.text` `.csv` `.tsv` | text thuần |
+| `.zip` | giải nén entry dataset (yêu cầu **đúng 1** entry), đọc trực tiếp không ghi tạm ra đĩa |
+| `.rar` `.7z` | **từ chối** — chỉ hỗ trợ `.zip` |
+| *(không có)* | **từ chối** |
+
+So khớp extension không phân biệt hoa/thường. Bản nén của mọi dataset nằm ở `dataset/zip/`:
+
+```
+Main mine --dataset dataset\zip\chess.dat.zip --partial 0.15 --f 0.9 --parts 1
+```
+
 CLI chỉ dùng API mở trong `dhopm-common` (Engine / PhaseAwareEngine / ProgressAwareEngine /
 TimedEngine / testkit Golden) — không truy cập nội bộ thuật toán (plan 00 §4.2 P1–P6).
 
@@ -56,6 +71,6 @@ TimedEngine / testkit Golden) — không truy cập nội bộ thuật toán (pl
 
 - `docs/design.md` — ánh xạ GoF, quyết định lập-trình, bất biến INV-A..E, API mở cho công cụ
 - `docs/test-report.md` — kết quả test nhiều lần chạy
-- `docs/benchmark.md` — số đo trên 7 dataset + khuyến nghị chọn tham số
+- `docs/benchmark.md` — số đo khảo sát trên 2 dataset đại diện + khuyến nghị chọn tham số
 - `docs/golden-doubles-v1.json` — snapshot độ chính xác máy (double đầy đủ) cho V2/V3
 - `../..` + `../../../docs/plans/01-STANDARD-VERSION-PLAN.md` — kế hoạch giai đoạn G1

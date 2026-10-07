@@ -10,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -132,5 +135,84 @@ class CliCommandsTest {
             System.setOut(old);
         }
         assertTrue(buf.toString(StandardCharsets.UTF_8).contains("unknown command"));
+    }
+
+    @Test
+    void mineAcceptsZippedDataset() throws Exception {
+        Path zip = zipOf(fimi(), "mini.dat.zip");
+        String out = run("mine", "--dataset", zip.toString(), "--partial", "0.15", "--f", "0.9", "--parts", "1");
+        assertTrue(out.contains("total_ms"), "mine must run on a .zip dataset:\n" + out);
+        assertTrue(out.contains("mini.dat"), "inner entry name should be reported:\n" + out);
+    }
+
+    @Test
+    void zippedDatasetMatchesPlainFileResult() throws Exception {
+        Path plain = fimi();
+        String fromPlain = run("mine", "--dataset", plain.toString(), "--parts", "1");
+        String fromZip = run("mine", "--dataset", zipOf(plain, "same.dat.zip").toString(), "--parts", "1");
+        assertEquals(patternColumn(fromPlain), patternColumn(fromZip),
+                "zip must not change mining result");
+    }
+
+    @Test
+    void mineRejectsDatasetPathWithoutExtension() throws Exception {
+        Path noExt = tmp.resolve("noextension");
+        Files.write(noExt, lines, StandardCharsets.UTF_8);
+        CliSupport.CliException e = assertThrows(CliSupport.CliException.class,
+                () -> new Main().dispatch(new String[]{"mine", "--dataset", noExt.toString()}));
+        assertTrue(e.getMessage().contains("needs a file extension"), e.getMessage());
+    }
+
+    @Test
+    void mineRejectsRarAndSevenZip() throws Exception {
+        for (String name : new String[]{"data.rar", "data.7z"}) {
+            Path file = tmp.resolve(name);
+            Files.write(file, lines, StandardCharsets.UTF_8);
+            CliSupport.CliException e = assertThrows(CliSupport.CliException.class,
+                    () -> new Main().dispatch(new String[]{"mine", "--dataset", file.toString()}), name);
+            assertTrue(e.getMessage().contains("only .zip is supported"), e.getMessage());
+        }
+    }
+
+    @Test
+    void mineRejectsUnknownExtension() throws Exception {
+        Path file = tmp.resolve("data.parquet");
+        Files.write(file, lines, StandardCharsets.UTF_8);
+        CliSupport.CliException e = assertThrows(CliSupport.CliException.class,
+                () -> new Main().dispatch(new String[]{"mine", "--dataset", file.toString()}));
+        assertTrue(e.getMessage().contains("unsupported dataset extension"), e.getMessage());
+    }
+
+    /**
+     * Extracts the pattern counts from a mine run so plain and zipped inputs can be compared.
+     * Deliberately ignores timing and heap columns, which legitimately differ between the two.
+     */
+    private static String patternColumn(String out) {
+        StringBuilder sb = new StringBuilder();
+        java.util.regex.Matcher total =
+                java.util.regex.Pattern.compile("patterns\\(last part\\)=(\\d+)").matcher(out);
+        if (total.find()) {
+            sb.append("total=").append(total.group(1));
+        }
+        for (String line : out.split("\\R")) {
+            String t = line.trim();
+            // per-part rows are purely numeric: part loaded last_tid ... patterns heap_mb
+            if (!t.matches("^\\d+(?:\\s+\\d+(?:\\.\\d+)?)+$")) {
+                continue;
+            }
+            String[] parts = t.split("\\s+");
+            sb.append(" | p=").append(parts[parts.length - 2]);
+        }
+        return sb.toString();
+    }
+
+    private Path zipOf(Path source, String zipName) throws Exception {
+        Path zip = tmp.resolve(zipName);
+        try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zip))) {
+            out.putNextEntry(new ZipEntry(source.getFileName().toString()));
+            out.write(Files.readAllBytes(source));
+            out.closeEntry();
+        }
+        return zip;
     }
 }

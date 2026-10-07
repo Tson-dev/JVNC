@@ -1,13 +1,18 @@
 package dhopm.v1.cli;
 
 import dhopm.common.config.MiningConfig;
+import dhopm.common.io.DatasetFile;
 import dhopm.common.io.FimiTransactionReader;
 import dhopm.common.io.TextTransactionReader;
+import dhopm.common.io.TransactionSource;
+import dhopm.common.io.ZipDataset;
 import dhopm.common.transaction.Transaction;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -117,30 +122,50 @@ final class CliSupport {
      * Nạp dataset theo format; nếu {@code --limit > 0} chỉ lấy tối đa {@code limit} giao
      * dịch ĐẦU (đọc lười, không nạp cả file 1M+ dòng vào bộ nhớ) rồi báo đã hết dataset
      * hay chưa. {@code limit=0} = đọc hết như cũ.
+     *
+     * <p>Đường dẫn bắt buộc có extension ({@link DatasetFile}); {@code .zip} được giải nén
+     * trực tiếp, không ghi tạm ra đĩa.
      */
     static Loaded load(Params p) throws CliException {
         Path path = Paths.get(p.dataset());
         if (!Files.exists(path)) {
             throw new CliException("dataset not found: " + path);
         }
+        DatasetFile.Kind kind;
         try {
-            dhopm.common.io.TransactionSource source = switch (p.format()) {
-                case "fimi" -> new FimiTransactionReader(path);
-                case "text" -> new TextTransactionReader(path);
-                default -> throw new CliException("unknown format: " + p.format());
-            };
-            List<Transaction> all = new java.util.ArrayList<>();
-            long remaining = p.limit();
-            while (source.hasNext() && (p.limit() == 0 || remaining-- > 0)) {
-                all.add(source.next());
+            kind = DatasetFile.requireSupported(path);
+        } catch (IllegalArgumentException e) {
+            throw new CliException(e.getMessage());
+        }
+        try {
+            if (kind == DatasetFile.Kind.ZIP) {
+                try (ZipDataset zip = ZipDataset.open(path)) {
+                    return read(zip.openStream(), p, path + " [" + zip.entryName() + "]");
+                }
             }
-            if (all.isEmpty()) {
-                throw new CliException("empty dataset: " + path);
+            try (InputStream in = Files.newInputStream(path)) {
+                return read(in, p, path.toString());
             }
-            return new Loaded(all, p.limit(), !source.hasNext());
         } catch (java.io.IOException e) {
             throw new CliException("failed to read dataset: " + e.getMessage());
         }
+    }
+
+    private static Loaded read(InputStream in, Params p, String label) throws CliException {
+        TransactionSource source = switch (p.format()) {
+            case "fimi" -> new FimiTransactionReader(in);
+            case "text" -> new TextTransactionReader(in);
+            default -> throw new CliException("unknown format: " + p.format());
+        };
+        List<Transaction> all = new ArrayList<>();
+        long remaining = p.limit();
+        while (source.hasNext() && (p.limit() == 0 || remaining-- > 0)) {
+            all.add(source.next());
+        }
+        if (all.isEmpty()) {
+            throw new CliException("empty dataset: " + label);
+        }
+        return new Loaded(all, p.limit(), !source.hasNext());
     }
 
     static MiningConfig config(Params p) {
@@ -187,6 +212,8 @@ final class CliSupport {
 
                 Options:
                   --dataset <file>   --format fimi|text (default fimi)
+                                    path must have an extension: .dat/.txt/.text/.csv/.tsv (plain text)
+                                    or .zip (archive holding exactly 1 dataset file; .rar/.7z rejected)
                   --partial <d [0,1]>  --f <(0,1]>  --workers <n>  --parts <n>  --top <n>
                   --limit <n>   read at most the FIRST n transactions, then mine
                                 (0 or omitted = read all; if dataset is smaller,

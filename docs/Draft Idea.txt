@@ -1,0 +1,49 @@
+Sau đây là vấn đề, ý tưởng cách giải quyết tôi nghĩ ra:
+
+thêm hệ số ε, là sai số hệ thống do người dùng định nghĩa đóng vai trò là ngưỡng dưới của DO
+trong thuật toán (thuật toán có ngưỡng trên nhưng không có ngưỡng dưới dẫn đến hệ quả là phải đọc toàn bộ
+dataset mà nhiều giá trị DO của các transaction không có đống góp vì hệ số suy giảm f quá nhỏ
+làm DO nhỏ theo). Điều này dẫn đến hậu quả là dựa vào hệ số f, parial và ε ->
+tính ra kích thước 1 window (số tracsaction có giá trị, nếu transaction ra khỏi của sổ này đồng nghĩa
+DO của nó nhỏ hơn hoặc bằng ε). Hệ quả thứ 2 là khiến cách thiết kế project sẽ khác đi, hay vì bám sát
+paper là tích lũy dẫn đến vấn đề đọc thừa mà không mang lại giá trị, thì với Z là kích thướng của sổ tính
+từ f, parial và ε, ta có thể tạo array[Z] hoặc chỉ cần so sánh nếu TL - Ti < Z thì bỏ transaction đó khỏi
+DOPList, điều này sẽ dẫn đến vấn đề khác là làm sao để khi bỏ transaction Ti thì không cần phải rà soát lại
+từng node để bỏ entry chứa Ti.
+Giả sử item A trong quá khứ (ngoài window) xuất hiện rất nhiều (giả định 1000), hiện tại trong window A chỉ xuất hiện 1 lần:
+- Nếu theo thuật toán cũ: Node A sẽ có Sup(A) = 1001 giả định lớn hơn minSup tại thời điểm -> thuật toán phải tính DO của 1001 transaction
+-> cộng lại thành DO(A) mà trong đó 1000 giá trị DO được coi là không ảnh hưởng nên DO(A) này chỉ phản ánh đúng 1 lần xuất hiện
+-> làm tốn tài nguyên tính toán mà không mang lại lợi ích nào
+- Nếu theo thêm epsilon: 1000 transaction cũ đã bị bỏ khỏi Node A nên Sup(A) = 1 < minSup
+-> bị bỏ sau recontruction
+Tổng kết việc thêm epsilon:
+- Ưu: tiếp kiệm bộ nhớ, giảm tính toán và cải thiện tốc độ
+- Nhược: phức tạp cấu trúc khi triển khai, cơ chế gỡ transaction phải đảm bảo Node cũng phải bỏ transaction tương ứng làm tăng chi phí truy vấn -> phải tìm giải pháp
+
+giải pháp cho việc bỏ 1 transaction là các node khác phải đồng bộ lại:
+Node chỉ lưu pointer/ref (ref1) chỉ đến một pointer/ref (ref2) chỉ đến transaction.
+mục đích: khi xóa transaction, ta sẽ tìm ref2 và gắn bằng null, khi này từ ref1 sẽ đọc ref2, ref2 trả null nên Node sẽ tự bỏ ref1 khỏi chính nó.
+lý do phải có ref1 và ref2?
+- nếu chỉ có 1 ref, khi đặt transaction = null, ref đó tùy ngôn ngữ có thể sẽ chỉ về vùng nhớ cụ thể hay vì chỉ về đối tượng và dẫn đến lỗi,
+mặc dù có thể dùng try/catch để fix nhưng sẽ làm thuật toán phức tạp
+ref2 có thể hiểu là một handle.
+
+vấn đề tiếp theo là minSup, trong thuật toán là minSup bị phụ thuộc vào kích thước dataset, nếu giă sử dataset 10000 transaction
+khi này cho tính ra window là 1000 thì từ TL = 1000 -> TL = 10000 sẽ có xu hướng số lượng pattern giảm về 0
+nếu áp dụng epsilon thì có vấn đề ở giai đoạn chưa đầy window, giả sử window là 100 thì mới đưa vào 4 transaction
+là mining thì không thể để minsup = kích thước window x parial.
+giải pháp là minSup sẽ có 2 giai đoạn, nếu TL chưa bằng kích thước window thì cứ để winSup tăng, nếu bằng thì ngừng tăng
+tức là giả sử kích thước window là 100 thì dataset 10000 thì lim(minSup) = parial x 100
+
+hệ quả cuối là phải kiểm tra từng thông số và trường hợp, tức là phải có test case như nếu epsilon = 10^-3, parial = 1 và f = 1 thì window_size = ?
+sau đó mỗi test case phải tính hiệu năng và tối ưu lại, đồng thời cũng phải tính lại công thức tính window_size
+
+từ các nhận định này thì sẽ phải đổi lại kế hoạch
+theo tôi thì nên đổi thành 4 version
+version 1 (cái hiện đang có) bám sát paper và áp dụng GoF
+version 2 là giống version 1 nhưng áp dụng hệ số ε và các hệ quả phát sinh từ việc áp dụng
+version 3 là tối ưu khi áp dụng ε
+version 4 là tối ưu cực đoan khi áp dụng ε
+ưu tiên: version 1 (hiện đã có) và version 2 -> version 3 -> version 4
+
+CLI sẽ thêm lệnh và các tài liệu, tương ứng
