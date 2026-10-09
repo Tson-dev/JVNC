@@ -13,8 +13,17 @@ class MiningConfigTest {
         assertEquals(0.15, c.partial());
         assertEquals(0.9, c.decayFactor());
         assertEquals(MiningConfig.DEFAULT_EPSILON, c.epsilon());
+        assertEquals(0.0, c.minOcc());
         assertEquals(MiningConfig.DEFAULT_WORKERS, c.workers());
         assertEquals(MiningConfig.DEFAULT_WORKERS, Runtime.getRuntime().availableProcessors());
+    }
+
+    @Test
+    void windowConfigKeepsMinOcc() {
+        MiningConfig c = MiningConfig.of(0.15, 0.9, 1e-6);
+        assertEquals(1e-6, c.minOcc());
+        assertEquals(MiningConfig.DEFAULT_EPSILON, c.epsilon());
+        assertEquals(0.10, c.withMinOcc(0.1).minOcc());
     }
 
     @Test
@@ -31,6 +40,8 @@ class MiningConfigTest {
         assertThrows(IllegalArgumentException.class, () -> MiningConfig.of(0.15, 1.5));
         assertThrows(IllegalArgumentException.class, () -> new MiningConfig(0.15, 0.9, 0.0, 1));
         assertThrows(IllegalArgumentException.class, () -> new MiningConfig(0.15, 0.9, 1e-6, 0));
+        assertThrows(IllegalArgumentException.class, () -> new MiningConfig(0.15, 0.9, 1e-6, -1e-9, 1));
+        assertThrows(IllegalArgumentException.class, () -> new MiningConfig(0.15, 0.9, 1e-6, 1.5, 1));
     }
 
     @Test

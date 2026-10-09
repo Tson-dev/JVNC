@@ -19,7 +19,7 @@
 | Phiên bản | Mô tả |
 |---|---|
 | 0.1 | Lập plan V3-Extreme (ý tưởng) |
-| **0.2** | Đổi thành **V4**, mốc so sánh **V3**, bổ sung góc nhìn cửa sổ ε (pipeline 3 pha tương thích với evict), threading **Level 3** |
+| **0.2** | Đổi thành **V4**, mốc so sánh **V3**, bổ sung góc nhìn cửa sổ minOcc (pipeline 3 pha tương thích với evict), threading **Level 3** |
 
 ---
 
@@ -40,7 +40,7 @@ Các mục tiêu định hướng:
   - `int[][]` hoặc mảng gộp cho `txSlot`, `len` theo từng item; `double[]` cho `doValue`; `int[]` cho support/count.
 - Không `class Node`/`interface`/`abstract` cho dữ liệu; chỉ **record/struct-thuần** hoặc mảng.
 - Đi qua các mảng **tuần tự/liên khối** để tận dụng prefetch; hạn chế con trỏ nhảy.
-- **Cửa sổ ε thuận lợi ở đây:** vì `W` hữu hạn ⇒ `WindowBuffer` là mảng **kích thước cố định**, không cấp phát lại ⇒ `head` chỉ là số nguyên; toàn bộ cửa sổ nằm trong L2/L3.
+- **Cửa sổ minOcc thuận lợi ở đây:** vì `W` hữu hạn ⇒ `WindowBuffer` là mảng **kích thước cố định**, không cấp phát lại ⇒ `head` chỉ là số nguyên; toàn bộ cửa sổ nằm trong L2/L3.
 
 ### 2.2 Hướng Procedural & Cache
 - Logic thuật toán đặt trong các **method static thuần** (không giữ state trên instance).
@@ -49,7 +49,7 @@ Các mục tiêu định hướng:
 
 ### 2.3 Hướng Song song tối đa (Level 3)
 - **Pipeline 3 giai đoạn chạy xen kẽ** (construction của batch *k+1* song song với mining batch *k*) **nếu** đảm bảo semantic one-scan và kết quả.
-  - ⚠️ **Ràng buộc thêm do ε:** evict **phải đơn luồng và xảy ra trước mọi pha song song** (C10). Với pipeline xen kẽ, cần chứng minh rằng mọi giai đoạn đọc DHO-List đều thấy **cùng một ảnh chụp cửa sổ** ⇒ nếu không chứng minh được ⇒ **giữ pipeline tuần tự**, chỉ song song hoá bên trong từng pha.
+  - ⚠️ **Ràng buộc thêm do minOcc:** evict **phải đơn luồng và xảy ra trước mọi pha song song** (C10). Với pipeline xen kẽ, cần chứng minh rằng mọi giai đoạn đọc DHO-List đều thấy **cùng một ảnh chụp cửa sổ** ⇒ nếu không chứng minh được ⇒ **giữ pipeline tuần tự**, chỉ song song hoá bên trong từng pha.
 - Worker chuyên trách: reader/parser, reconstruction, mining; giao tiếp qua buffer không lock (hoặc lock tối thiểu).
 - Sink kết quả lock-free; vẫn đảm bảo determinism C5/C6.
 
@@ -60,13 +60,13 @@ Các mục tiêu định hướng:
 
 ### 2.5 Hướng "không làm gì" (đo trước, giữ sau)
 - Bỏ hẳn các tính năng chỉ phục vụ **quan sát**: nếu đã có kết quả đo ở V2/V3 thì giữ thống kê evict/memory ở V4 chỉ khi nó **nằm ngoài hot path**.
-- Nếu `ε = 0` (chế độ bám sát paper) không phải mục tiêu hiệu năng chính của V4 → cho phép **từ chối** `ε = 0` trong V4, ghi rõ trong tài liệu (và bảo đảm lệnh so sánh dùng `ε > 0`).
+- Nếu `minOcc = 0` (chế độ bám sát paper) không phải mục tiêu hiệu năng chính của V4 → cho phép **từ chối** `minOcc = 0` trong V4, ghi rõ trong tài liệu (và bảo đảm lệnh so sánh dùng `minOcc > 0`).
 
 ## 3. Ràng buộc & Tiêu chí quyết định hướng
 
 Khi bắt đầu giai đoạn V4 (sau khi V2/V3 xong) phải:
 - **So sánh có chứng cứ:** mỗi hướng phải đo được lợi ích ≥ ngưỡng rõ ràng so với V3; ngừng hướng nào không đạt.
-- **Trùng kết quả:** ε = 0 ⇒ ≡ V1; ε > 0 ⇒ ≡ V2/V3 (double đầy đủ).
+- **Trùng kết quả:** minOcc = 0 ⇒ ≡ V1; minOcc > 0 ⇒ ≡ V2/V3 (double đầy đủ).
 - **Đơn giản để review:** mất mát về "dễ đọc" phải được bù bằng tốc độ/bộ nhớ **đo được**, không phải niềm tin.
 
 ## 4. Công việc hiện tại (cho tới khi V3 xong)

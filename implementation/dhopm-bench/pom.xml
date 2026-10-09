@@ -14,7 +14,8 @@
     <name>DHOPM Benchmark</name>
     <description>
         Benchmark driver (OVERALL-PLAN 5): incremental loading, per-stage timings,
-        deterministic execution, CSV output. Runs any engine version; V1 is benchmarked here.
+        deterministic execution, CSV output. Runs any engine version; V1 (paper) and V2 (damped
+        window minOcc, INV-I ablation) are benchmarked here.
     </description>
 
     <dependencies>
@@ -26,6 +27,11 @@
         <dependency>
             <groupId>org.jvnc.dhopm</groupId>
             <artifactId>dhopm-v1-standard</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-v2-minocc</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

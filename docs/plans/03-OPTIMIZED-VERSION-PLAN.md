@@ -1,4 +1,4 @@
-# DHOPM – Kế hoạch Phiên bản 3: Optimized (tối ưu trên nền cửa sổ ε)
+# DHOPM – Kế hoạch Phiên bản 3: Optimized (tối ưu trên nền cửa sổ minOcc)
 
 > Phiên bản tập trung **tối ưu cấu trúc dữ liệu** (List/Set, mã hoá item thành ID, kết hợp ID+name, primitive array thay cho object) và **tinh chỉnh threading (Level 2)**. NFR đầy đủ: runtime, peak memory, throughput, latency theo batch, so sánh trực tiếp với V2. **Kết quả phải trùng V2** (mốc từ V2/V1) theo canonical spec.
 
@@ -10,7 +10,7 @@
 | **Version** | 1.1 (Draft) |
 | **Bí danh** | **V3 — Optimized** |
 | **Module** | `implementation/dhopm v3 optimized` |
-| **Phụ thuộc** | `00 OVERALL PLAN.md` (canonical C1–C12, khung threading Level 2); `02 EPSILON WINDOW VERSION PLAN.md` (V2 = mốc ngữ nghĩa ε) |
+| **Phụ thuộc** | `00 OVERALL PLAN.md` (canonical C1–C12, khung threading Level 2); `02 MINOCC WINDOW VERSION PLAN.md` (V2 = mốc ngữ nghĩa minOcc) |
 | **Source** | `docs/root/1 s2_0 S095219762600792X main.md`, `docs/root/Nhom01_VDChayTay.md` |
 | **Định vị threading** | Level 2 (ForkJoinPool, work stealing) |
 
@@ -19,7 +19,7 @@
 | Phiên bản | Mô tả |
 |   |   |
 | 1.0 | Lập plan V2 Optimized (C1–C6) |
-| **1.1** | Đổi thành **V3**, mốc so sánh chuyển từ V1 → **V2**, thêm tối ưu cửa sổ: **bỏ xích handle (`ref1` → chỉ số `int` vào circular buffer)**, **SoA cho window buffer**, **precomputed decay lookup theo tuổi `k = TL − tid`**. `ε` là tham số bắt buộc |
+| **1.1** | Đổi thành **V3**, mốc so sánh chuyển từ V1 → **V2**, thêm tối ưu cửa sổ: **bỏ xích handle (`ref1` → chỉ số `int` vào circular buffer)**, **SoA cho window buffer**, **precomputed decay lookup theo tuổi `k = TL − tid`**. `minOcc` là tham số bắt buộc |
 
 
 
@@ -27,8 +27,8 @@
 
 1. **Cải thiện hiệu năng thực sự** so với V2 trên các dataset FIMI (đo được bằng benchmark).
 2. Áp dụng **Level 2 threading**: work stealing, construction song song, chia cây con ở độ sâu linh hoạt.
-3. Giữ **kết quả trùng V2** (double đầy đủ, mapping theo C5) — kể cả khi `ε > 0`.
-4. **Tận dụng cửa sổ ε**: vì `W` hữu hạn ⇒ mọi mảng đều **giới hạn theo W** ⇒ không cần cấp phát theo N ⇒ bộ nhớ phẳng.
+3. Giữ **kết quả trùng V2** (double đầy đủ, mapping theo C5) — kể cả khi `minOcc > 0`.
+4. **Tận dụng cửa sổ minOcc**: vì `W` hữu hạn ⇒ mọi mảng đều **giới hạn theo W** ⇒ không cần cấp phát theo N ⇒ bộ nhớ phẳng.
 5. Cung cấp **báo cáo benchmark đầy đủ** + **bảng ablation V1→V2→V3**.
 
 ## 2. Phạm vi
@@ -41,14 +41,14 @@
 
 | NFR | Yêu cầu |
 |   |   |
-| **N1 Đúng đắn** | **ε = 0** ⇒ bit for bit ≡ V1/V2; **ε > 0** ⇒ ≡ V2 (TC1–TC18 + E1–E10) |
+| **N1 Đúng đắn** | **minOcc = 0** ⇒ bit for bit ≡ V1/V2; **minOcc > 0** ⇒ ≡ V2 (TC1–TC18 + E1–E10) |
 | N2 Runtime | nhanh hơn V2 trên cùng dataset/tham số; ghi rõ ratio |
 | N3 Peak memory | ≤ V2 (mục tiêu giảm rõ; đo JMX/JFR) |
 | N4 Throughput | số DOP/s |
 | N5 Latency theo batch | ghi số liệu từng phần 1/5 |
 | N6 Scalability | `kosarak` 200K→990K + `chainstore`; **memory phẳng theo N** |
 | N7 Determinism | tái lập bất kể pool size/worker |
-| N8 Cấu hình | ∂, f, **ε**, worker count, bật/tắt construction parallel qua CLI |
+| N8 Cấu hình | ∂, f, **minOcc**, worker count, bật/tắt construction parallel qua CLI |
 | **N9 Không rò handle** | sau tối ưu, **không còn đối tượng Handle** ⇒ INV H tự động thoả (chỉ còn tra cứu `txId` trong bảng trạng thái) |
 
 ## 4. Quyết định tối ưu Cấu trúc Dữ liệu (trọng tâm V3)
@@ -60,7 +60,7 @@
 
 Bảng so sánh quyết định V2 → V3 (mỗi dòng là một "điểm tối ưu khảo sát"):
 
-| Vấn đề | V2 (Epsilon) | V3 (Optimized — đề xuất khảo sát) | Ghi chú |
+| Vấn đề | V2 (MinOcc) | V3 (Optimized — đề xuất khảo sát) | Ghi chú |
 |   |   |   |   |
 | Item biểu diễn | `record Item(String)` | **`int itemId`** + từ điển `String→int` (Intern/dictionary), giữ một lần name, không so chuỗi trong vòng nóng | Vòng lặp mining so/hash int thay vì String |
 | Tra cứu node | `LinkedHashMap<Item, Node>` | `int itemId` → chỉ số node (`Node[]` growable) | Giảm object key boxing |
@@ -76,7 +76,7 @@ Bảng so sánh quyết định V2 → V3 (mỗi dòng là một "điểm tối 
 | `Math.pow` | gọi lại mỗi lần | **bảng tra nhanh decay:** `decayLookup[k] = f^k` cho `k=0..W 1` (giới hạn theo **W**, không theo TL!) | Chỉ cần tới `W 1` vì tuổi lớn nhất trong cửa sổ là `W 1` |
 | Kết quả | `record ResultPattern(items, do, occurrences)` | nén: `int[] items` + `double do` | Nếu không cần giữ transactions → bỏ |
 
-> **Nguyên tắc bắt buộc:** mọi thay đổi cấu trúc **không được đổi thứ tự tính toán** của một node (C5) và **không được đổi tập kết quả** (INV E) — kể cả khi `ε > 0`. Trạng thái quyết định cuối (chọn phương án nào trong mỗi dòng) chốt sau khi **đo microbenchmark** giữa hai phương án con — đưa vào report.
+> **Nguyên tắc bắt buộc:** mọi thay đổi cấu trúc **không được đổi thứ tự tính toán** của một node (C5) và **không được đổi tập kết quả** (INV E) — kể cả khi `minOcc > 0`. Trạng thái quyết định cuối (chọn phương án nào trong mỗi dòng) chốt sau khi **đo microbenchmark** giữa hai phương án con — đưa vào report.
 
 ### 4.1 Khảo sát riêng "List vs Set"
   Ở global list: node dùng tra cứu nhanh → **mảng theo itemId** (≈ "set/associative" bằng index) tốt hơn List tuyến tính khi số item lớn (Retail: 16k item).
@@ -102,7 +102,7 @@ Bảng so sánh quyết định V2 → V3 (mỗi dòng là một "điểm tối 
 
 ### 4.4 Bảng decay theo **tuổi** thay vì theo TID
 
-Vì tuổi của transaction trong cửa sổ là `k = TL − tid ∈ [0, W−1]`, bảng tra chỉ cần **W phần tử**, không cần TL. Với `ε = 0` (W = ∞), fallback về cách tính nhanh theo log/exp phân đoạn và **ghi rõ giới hạn** trong report.
+Vì tuổi của transaction trong cửa sổ là `k = TL − tid ∈ [0, W−1]`, bảng tra chỉ cần **W phần tử**, không cần TL. Với `minOcc = 0` (W = ∞), fallback về cách tính nhanh theo log/exp phân đoạn và **ghi rõ giới hạn** trong report.
 
 ## 5. Khung Threading Level 2 (bắt buộc)
 
@@ -140,7 +140,7 @@ Pool: ForkJoinPool (work stealing) hoặc ExecutionService + thuật toán chia 
 ## 6. Công việc & Milestone (V3)
 
 **M1 – Chuẩn bị & đo lường baseline**
-  [ ] Chạy **V2** benchmark trên các dataset cục bộ `dataset/` (mushroom, retail trước; thêm chess/connect/kosarak/pumsb/pumsb_star), chia 5 phần, **ε cố định**, ∂ **trong miền khả thi** (bảng 6.4 plan tổng thể) → **baseline V2**.
+  [ ] Chạy **V2** benchmark trên các dataset cục bộ `dataset/` (mushroom, retail trước; thêm chess/connect/kosarak/pumsb/pumsb_star), chia 5 phần, **minOcc cố định**, ∂ **trong miền khả thi** (bảng 6.4 plan tổng thể) → **baseline V2**.
   [ ] Dựng sẵn `dhopm bench` (đo 3 giai đoạn, peak memory, throughput, latency batch, median ≥3 chạy).
 
 **M2 – Cải tiến cấu trúc dữ liệu (tuần tự trước, song song sau)**
@@ -162,12 +162,12 @@ Pool: ForkJoinPool (work stealing) hoặc ExecutionService + thuật toán chia 
   [ ] Test determinism với pool size {1,2,4,cpu}.
 
 **M4 – Nghiệm thu đúng đắn (bắt buộc)**
-  [ ] **ε = 0**: TC1–TC8 bit for bit ≡ V1/V2.
-  [ ] **ε > 0**: TC9–TC18 + E1–E10, so **double đầy đủ** với V2.
+  [ ] **minOcc = 0**: TC1–TC8 bit for bit ≡ V1/V2.
+  [ ] **minOcc > 0**: TC9–TC18 + E1–E10, so **double đầy đủ** với V2.
   [ ] Đối chiếu từng trường hợp: DO node, DUBO, `Z(X)`, `UB'(X)`, danh sách DOP giống V2.
 
 **M5 – Benchmark đầy đủ & báo cáo**
-  [ ] Chạy **10 dataset cục bộ** trong `dataset/` (accidents/chainstore/chess/connect/kosarak/mushroom/newMushroom/pumsb/pumsb_star/retail), f=0.9, **ε cố định**, ∂ trong miền khả thi, chia 5 phần incremental.
+  [ ] Chạy **10 dataset cục bộ** trong `dataset/` (accidents/chainstore/chess/connect/kosarak/mushroom/newMushroom/pumsb/pumsb_star/retail), f=0.9, **minOcc cố định**, ∂ trong miền khả thi, chia 5 phần incremental.
   [ ] Scalability: cắt `kosarak.dat` theo số dòng (200K→990K) **và** `chainstore.dat` (lớn nhất, 1.11M); ghi runtime & memory theo kích thước → chứng minh **memory phẳng theo N**.
   [ ] So sánh V1 ↔ V2 ↔ V3: runtime (3 giai đoạn), peak memory, throughput, latency batch, scalability; ratio.
   [ ] Báo cáo benchmark (`dhopm bench/reports/`) — kèm môi trường phần cứng, cách đo, số lần chạy (≥3, median).
@@ -177,7 +177,7 @@ Pool: ForkJoinPool (work stealing) hoặc ExecutionService + thuật toán chia 
 
 ## 7. Tiêu chí "Done" (V3)
 
-  [ ] **ε = 0** ⇒ ≡ V1/V2; **ε > 0** ⇒ ≡ V2 (double đầy đủ).
+  [ ] **minOcc = 0** ⇒ ≡ V1/V2; **minOcc > 0** ⇒ ≡ V2 (double đầy đủ).
   [ ] Determinism qua nhiều pool size.
   [ ] **Không còn đối tượng Handle**; evict vẫn O(1).
   [ ] Benchmark đầy đủ hoàn tất; V3 nhanh hơn V2 ở ≥ 3/4 dataset (hoặc có phân tích rõ vì sao không).

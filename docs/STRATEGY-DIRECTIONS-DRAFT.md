@@ -1,20 +1,20 @@
-# DHOPM — Đề xuất hướng phát triển (đã cập nhật theo hướng cửa sổ ε)
+# DHOPM — Đề xuất hướng phát triển (đã cập nhật theo hướng cửa sổ minOcc)
 
 | Mục | Giá trị |
 |---|---|
 | **Document ID** | DHOPM-STRATEGY-000 |
 | **Version** | **1.0 (Draft)** |
 | **Status** | ⚠️ **Bản thảo ý tưởng — KHÔNG phải quyết định.** Mọi thứ ở đây là nhận định, đề xuất, phỏng đoán; tác giả tự chọn hoặc bác bỏ |
-| **Mục đích** | Trả lời 4 câu: *phát triển thành gì, như thế nào, tại sao, giải quyết vấn đề gì* — dựa trên `docs/` hiện có + paper gốc + code G1 + ý tưởng ε trong `docs/Draft Idea.txt` |
-| **Đọc kèm** | `plans/00-OVERALL-PLAN.md` (canonical **C1–C12, INV-A..J**), `plans/02-EPSILON-WINDOW-VERSION-PLAN.md`, `reports/G1-V1-STANDARD-BAOCAO.md` §4.5, `dhopm-v1-standard/docs/benchmark.md`, `root/1-s2_0-S095219762600792X-main.md` |
-| **Ngày** | 2026-10-03 (cập nhật ε) |
+| **Mục đích** | Trả lời 4 câu: *phát triển thành gì, như thế nào, tại sao, giải quyết vấn đề gì* — dựa trên `docs/` hiện có + paper gốc + code G1 + ý tưởng minOcc trong `docs/Draft Idea.txt` |
+| **Đọc kèm** | `plans/00-OVERALL-PLAN.md` (canonical **C1–C12, INV-A..J**), `plans/02-MINOCC-WINDOW-VERSION-PLAN.md`, `reports/G1-V1-STANDARD-BAOCAO.md` §4.5, `dhopm-v1-standard/docs/benchmark.md`, `root/1-s2_0-S095219762600792X-main.md` |
+| **Ngày** | 2026-10-03 (cập nhật minOcc) |
 
 ### Revision History
 
 | Phiên bản | Mô tả |
 |---|---|
 | 0.1 | Bản đề xuất đầu: 3 đề xuất A/B/C, 3 hướng A/B/C, định vị lại 3 phiên bản, chốt 9 câu hỏi |
-| **1.0** | **Viết lại theo hướng mới**: `docs/Draft Idea.txt` đã được **chốt thành V2** (cửa sổ ε). Toàn bộ §3.6/§7/§8 được hợp nhất vào **G2–V2**. Số phiên bản 3 → **4**. Câu hỏi Q3 (ngưỡng `∂`) **đã có câu trả lời** ở `plans/00` §2.4–2.5 |
+| **1.0** | **Viết lại theo hướng mới**: `docs/Draft Idea.txt` đã được **chốt thành V2** (cửa sổ minOcc). Toàn bộ §3.6/§7/§8 được hợp nhất vào **G2–V2**. Số phiên bản 3 → **4**. Câu hỏi Q3 (ngưỡng `∂`) **đã có câu trả lời** ở `plans/00` §2.4–2.5 |
 
 ---
 
@@ -24,7 +24,7 @@ Tài liệu này **không thay thế** `plans/00` (nguồn chuẩn thuật toán
 
 Mọi phát hiện kỹ thuật ở §3 đều kèm cách kiểm chứng, không khẳng định suông. Chỗ nào tôi chỉ *phỏng đoán* thì ghi rõ **"giả thuyết"**. Chỗ nào đã đo rồi thì ghi rõ **"đã đo"** và kèm số liệu từ `benchmark.md`.
 
-> **Thay đổi quan trọng từ v0.1:** ý tưởng §3.6 (window decay) **không còn là đề xuất "nên làm"** — nó đã được tác giả **chốt** và chuẩn hoá thành **V2 = `dhopm-v2-epsilon`**, chi tiết ở `plans/02-EPSILON-WINDOW-VERSION-PLAN.md`. Vì vậy §3.6/§7/§8 dưới đây được viết lại theo hướng "thực thi", không phải "đề xuất".
+> **Thay đổi quan trọng từ v0.1:** ý tưởng §3.6 (window decay) **không còn là đề xuất "nên làm"** — nó đã được tác giả **chốt** và chuẩn hoá thành **V2 = `dhopm-v2-minocc`**, chi tiết ở `plans/02-MINOCC-WINDOW-VERSION-PLAN.md`. Vì vậy §3.6/§7/§8 dưới đây được viết lại theo hướng "thực thi", không phải "đề xuất".
 
 ---
 
@@ -45,13 +45,13 @@ Mọi phát hiện kỹ thuật ở §3 đều kèm cách kiểm chứng, không
 
 ### 1.2 Cái đang hở
 
-| # | Vấn đề | Bằng chứng | Trạng thái sau ε |
+| # | Vấn đề | Bằng chứng | Trạng thái sau minOcc |
 |---|---|---|---|
 | H1 | **Ngưỡng `∂` trong paper không dùng được trên thang đo DO** → mọi benchmark hiện tại đang đo *"tìm rỗng"* | `benchmark.md` §Kết luận: DO bị chặn trên ≈10 ở f=0.9; retail ∂=0.1% → minSup=88 ≫ 10 → **0 pattern sau 87 s**; mushroom ∂=6% → minSup=487 → **0 pattern sau 300 s** | ✅ **Đã có công thức trong lý thuyết** (`plans/00` §2.3–2.5), **cần đo ở G2** |
 | H2 | **Không có "trần" nào trong thuật toán** để dừng sớm khi kết quả chắc chắn rỗng | `Miner.java:52-55` chỉ prune bằng DUBO; DUBO ≤ support nên **không bao giờ cắt** khi minSup lớn | ✅ **Đưa vào V2** (short-circuit toàn cục + `UB'(X)=min(DUBO,Z(X))`) |
-| H3 | **Thuật toán không tận dụng decay trong cấu trúc dữ liệu** → chi phí mining vẫn tăng theo độ dài stream | DHO-List giữ **mọi** entry của **mọi** transaction; reconstruction quét lại toàn bộ mỗi `mineNow()` | ✅ **Đây chính là V2** (cửa sổ ε, evict O(1), handle 2 tầng) |
-| H4 | **Chưa có đối thủ so sánh nào.** V1/V2/V3/V4 là 4 bản cài cùng một họ thuật toán | `plans/00` §1.1; paper so với **HOMI-D / HEP-D**, dự án chưa có cái nào | ⏸ **Hoãn** — ε là việc đáng làm trước; baseline để sau |
-| H5 | **Chưa chứng minh được "one scanning"** | `IncrementalTest` chỉ kiểm "load 2 phần == load hết" | ⏸ **Cửa sổ ε làm tình huống này dễ kiểm chứng hơn** (thêm/bớt entry theo vòng đời) |
+| H3 | **Thuật toán không tận dụng decay trong cấu trúc dữ liệu** → chi phí mining vẫn tăng theo độ dài stream | DHO-List giữ **mọi** entry của **mọi** transaction; reconstruction quét lại toàn bộ mỗi `mineNow()` | ✅ **Đây chính là V2** (cửa sổ minOcc, evict O(1), handle 2 tầng) |
+| H4 | **Chưa có đối thủ so sánh nào.** V1/V2/V3/V4 là 4 bản cài cùng một họ thuật toán | `plans/00` §1.1; paper so với **HOMI-D / HEP-D**, dự án chưa có cái nào | ⏸ **Hoãn** — minOcc là việc đáng làm trước; baseline để sau |
+| H5 | **Chưa chứng minh được "one scanning"** | `IncrementalTest` chỉ kiểm "load 2 phần == load hết" | ⏸ **Cửa sổ minOcc làm tình huống này dễ kiểm chứng hơn** (thêm/bớt entry theo vòng đời) |
 | H6 | **Ước lượng roadmap vượt xa giá trị** | `plans/04` MA1–MA4, `plans/05` G-1..G-9 | ⏸ **Rút gọn** ở `plans/05` |
 | H7 | **Tài liệu tự mâu thuẫn**: 2 thiết kế CLI khác nhau; `P1-G1` checkbox toàn `[ ]`; 6 file rỗng | `docs/Document/CLI/**` vs `G1 report §4.2` | ⏳ **Đang dọn** (xem Phụ lục C) |
 | H8 | **Utility-FIMI chưa có reader** | D42 — planned, chưa triển khai | ⏸ Tuỳ chọn (G7) |
@@ -78,7 +78,7 @@ Trước khi chọn hướng kỹ thuật, phải chốt mục đích. Tôi th�
 Dự án này **có thể nghiêng 70% về M2 và 30% về M1, giữ M3 làm "lớp trình bày"** — tức là:
 
 - Giữ bộ khung module + GoF ở V1 (thoả M1, chi phí gần 0 vì đã có).
-- Nhưng **dồn năng lực vào phần còn trống của M2**: cửa sổ ε, bound, trần DO, cấu trúc dữ liệu, baseline.
+- Nhưng **dồn năng lực vào phần còn trống của M2**: cửa sổ minOcc, bound, trần DO, cấu trúc dữ liệu, baseline.
 - App (M3) được làm **sớm và mỏng** — chỉ để *cho thấy được cái mới*, không phải để có đủ màn hình.
 
 Lý do: hiện tại dự án **rất giỏi phần "làm đúng" và rất yếu phần "chứng minh điều gì đó"**. Đó là đúng mức hấp dẫn cho M1, nhưng chưa đủ cho M2, và chưa có gì để show cho M3.
@@ -99,14 +99,14 @@ DO(X) ≤ Σ_{t=1..TL} f^(TL − t) = (1 − f^TL) / (1 − f) ≡ Z(f, TL)
 
 Vì `|X|/|T_t| ≤ 1`. Với TL lớn, `Z → 1/(1−f)`:
 
-| f | Z ≈ 1/(1−f) | half-life (số giao dịch) | cửa sổ W ở ε=1e-6 |
+| f | Z ≈ 1/(1−f) | half-life (số giao dịch) | cửa sổ W ở minOcc=1e-6 |
 |---|---|---|---|
 | 0.8 | 5 | 3.1 | 70 |
 | 0.9 | 10 | 6.6 | 153 |
 | 0.95 | 20 | 13.5 | 328 |
 | 0.99 | 100 | 69 | 1 833 |
 
-*(Ghi chú: bản v0.1 ghi cửa sổ "≈132/270/1375" — đó là công thức xấp xỉ `ln(1/ε)/ln(1/f)` **thiếu yếu tố `(1−f)`**. Công thức chính xác trong `plans/00` §2.3.1 cho 70/153/328/1833. Đã sửa.)*
+*(Ghi chú: bản v0.1 ghi cửa sổ "≈132/270/1375" — đó là công thức xấp xỉ `ln(1/minOcc)/ln(1/f)` **thiếu yếu tố `(1−f)`**. Công thức chính xác trong `plans/00` §2.3.1 cho 70/153/328/1833. Đã sửa.)*
 
 *(Đã đo phần f=0.9: `benchmark.md` ghi DO chặn trên ≈10, nửa đời ≈7 — khớp.)*
 
@@ -114,14 +114,14 @@ Vì `|X|/|T_t| ≤ 1`. Với TL lớn, `Z → 1/(1−f)`:
 
 Với `minSup = ∂ × N_eff`, cần `∂ × N_eff ≤ Z(f,TL)` ⇒ **`∂ ≤ 1/((1−f)·W)`**.
 
-| f | W (ε=1e-3) | W (ε=1e-6) | W (ε=1e-9) | `∂` tối đa (ε=1e-3 / 1e-6 / 1e-9) |
+| f | W (minOcc=1e-3) | W (minOcc=1e-6) | W (minOcc=1e-9) | `∂` tối đa (minOcc=1e-3 / 1e-6 / 1e-9) |
 |---|---|---|---|---|
 | 0.8 | 39 | 70 | 101 | 12.8 % / 7.14 % / 4.95 % |
 | **0.9** | 88 | 153 | 219 | 11.4 % / 6.54 % / 4.57 % |
 | 0.95 | 194 | 328 | 463 | 5.15 % / 6.10 % / 4.32 % |
 | 0.99 | 1 146 | 1 833 | 2 521 | 0.87 % / 5.46 % / 3.97 % |
 
-Đối chiếu ngưỡng của paper (f=0.9, ε=1e-6 ⇒ W=153, N_eff=153, Z=10):
+Đối chiếu ngưỡng của paper (f=0.9, minOcc=1e-6 ⇒ W=153, N_eff=153, Z=10):
 
 | Paper | ∂ của paper | minSup mới | Kết luận |
 |---|---|---|---|
@@ -132,7 +132,7 @@ Với `minSup = ∂ × N_eff`, cần `∂ × N_eff ≤ Z(f,TL)` ⇒ **`∂ ≤ 1
 | **pumsb 30 %** | 0.3 | 45.9 | **⇒ ∅ chắc chắn** |
 | **connect 30 %** | 0.3 | 45.9 | **⇒ ∅ chắc chắn** |
 
-> **Điểm mới so với bản v0.1:** vì `N_eff` không giảm tuyến tính theo N như `∂ × N`, **miền `∂` khả thi rộng và ổn định** (~4–13 % bất kể `f`, `ε`, kích thước dataset). Đây là thuộc tính có lợi của công thức `minSup = ∂ × N_eff`: **∂ trở thành tham số có nghĩa, không cần tinh chỉnh theo dataset**.
+> **Điểm mới so với bản v0.1:** vì `N_eff` không giảm tuyến tính theo N như `∂ × N`, **miền `∂` khả thi rộng và ổn định** (~4–13 % bất kể `f`, `minOcc`, kích thước dataset). Đây là thuộc tính có lợi của công thức `minSup = ∂ × N_eff`: **∂ trở thành tham số có nghĩa, không cần tinh chỉnh theo dataset**.
 
 > **Giả thuyết (vẫn cần kiểm chứng, không phải cáo buộc):** các ngưỡng của paper có thể là ngưỡng **occupancy không damping** (kế thừa từ HEP — với O(X) thì O(X) ≤ N nên `∂ × N` là hợp lệ), trong khi đo bằng DO thì bị chặn ở `1/(1−f)`.
 
@@ -173,30 +173,30 @@ DO(Y) ≤ Σ_{t ∈ T(X)} f^(TL − t) ≡ Z(X)
 - Phải `min` — luôn ≤ DUBO ⇒ **chỉ prune thêm, không bao giờ prune sai**.
 - Đây chính là **limitation #2 của paper** ("cần kỹ thuật prune tốt hơn") — và nó xuất phát từ việc **chú ý rằng measure có damping ⇒ có trần**, điều paper không dùng.
 
-### 3.6 Ý tưởng C — Cửa sổ ε · **ĐÃ CHỐT THÀNH V2** ⭐
+### 3.6 Ý tưởng C — Cửa sổ minOcc · **ĐÃ CHỐT THÀNH V2** ⭐
 
 Ý tưởng mạnh nhất: **thay đổi đẳng cấp độ phức tạp**, không chỉ hằng số. Nguồn: `docs/Draft Idea.txt` (tác giả).
 
 Ý tưởng: transaction ở tuổi `k` đóng góp tổng ≤ `f^k`. Tổng phần bị bỏ (giữ `W` transaction cuối, tuổi `0..W−1`) là
 
 ```
-Σ_{k=W}^{∞} f^k = f^W/(1−f) ≤ ε   ⟹   W = ⌈ ln(ε(1−f)) / ln f ⌉
+Σ_{k=W}^{∞} f^k = f^W/(1−f) ≤ minOcc   ⟹   W = ⌈ ln(minOcc(1−f)) / ln f ⌉
 ```
 
 **Ba điều chỉnh quan trọng so với bản v0.1:**
 
-1. **Công thức cửa sổ phải có hệ số `(1−f)`.** Bản 0.1 dùng `t0 = TL + 1 + ln(ε·(1−f))/ln f`, đúng, nhưng bảng "≈132" ở f=0.9, ε=1e-6 là sai vì bỏ qua `(1−f)`. Giá trị đúng là **153**.
+1. **Công thức cửa sổ phải có hệ số `(1−f)`.** Bản 0.1 dùng `t0 = TL + 1 + ln(minOcc·(1−f))/ln f`, đúng, nhưng bảng "≈132" ở f=0.9, minOcc=1e-6 là sai vì bỏ qua `(1−f)`. Giá trị đúng là **153**.
 2. **`minSup` phải dùng `N_eff = min(TL, W)`, không phải `∂ × TL`.** Nếu giữ `∂ × TL` sau khi đã cắt cửa sổ, ngưỡng tiếp tục tăng theo độ dài stream trong khi dữ liệu chỉ còn `W` transaction ⇒ **số pattern tuyến tính → 0** ⇒ thuật toán "chết dần". Đây là điểm mà bản v0.1 **chưa nắm rõ**.
 3. **Evict phải O(1) ⇒ cần handle 2 tầng.** Bản v0.1 nói "bỏ entry có tid < t0" — cách đó là **O(|I|)** mỗi lần evict (phải rà từng node). `docs/Draft Idea.txt` đã chỉ ra cách đúng: giữ `ref1 → ref2(handle)`, evict bằng cách clear payload `ref2`; node phát hiện dead handle trong lúc đang traverse; vì evict theo TID tăng dần nên **entry chết luôn là tiền tố** ⇒ compaction bằng một chỉ số `head`, O(1) amortized. Xem `plans/02` §5.2.
 
 **Tính đúng đắn (lập luận được, cần test):**
 - Mọi thứ (DO, DUBO, DFS) trở thành **thuật toán chạy trên sub-stream trong cửa sổ với `TL` không đổi** ⇒ Lemma 2 vẫn đúng trong instance đó.
-- Sai số duy nhất là `|DO_full − DO_win| ≤ ε` cho **mọi** pattern (INV-G).
+- Sai số duy nhất là `|DO_full − DO_win| ≤ minOcc` cho **mọi** pattern (INV-G).
 - C2 vẫn hợp lệ: `sup_win(X) < minSup ⇒ DO(X) ≤ Z(X) ≤ sup_win(X) < minSup`.
 
 **Hiệu quả dự kiến (phỏng đoán — cần đo ở G2):**
 
-| | Hiện tại (V1) | Với cửa sổ (ε=1e-6, f=0.9, W=153) |
+| | Hiện tại (V1) | Với cửa sổ (minOcc=1e-6, f=0.9, W=153) |
 |---|---|---|
 | Entries trong DHO-List | O(N × avgLen) | O(W × avgLen) |
 | Reconstruction mỗi `mineNow` | O(tổng entries) | O(W × avgLen) |
@@ -215,7 +215,7 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 |---|---|---|---|
 | **A — nDO** | ✅ 1 giờ | | ⚠️ **đã hạ cấp xuống tuỳ chọn** |
 | **B — bound** | ✅ 1–2 ngày | ✅ **giải quyết limitation #2 + làm lộ ra H1** | |
-| **C — cửa sổ ε** | | | ✅ **giải quyết limitation #3 + #4, đổi đẳng cấp phức tạp — V2** |
+| **C — cửa sổ minOcc** | | | ✅ **giải quyết limitation #3 + #4, đổi đẳng cấp phức tạp — V2** |
 
 ---
 
@@ -223,7 +223,7 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 
 ### Hướng A — "Bản tái tạo + mở rộng có giá trị học thuật" *(đang thực hiện qua G2)*
 
-**Nội dung:** chứng minh bản cài đặt trung thực với paper; giải quyết mâu thuẫn ngưỡng; cửa sổ ε + bound + trần DO; cài baseline HOMI-D/HEP-D; sweep `(∂, f, ε)`; tái tạo 1–2 hình trong paper.
+**Nội dung:** chứng minh bản cài đặt trung thực với paper; giải quyết mâu thuẫn ngưỡng; cửa sổ minOcc + bound + trần DO; cài baseline HOMI-D/HEP-D; sweep `(∂, f, minOcc)`; tái tạo 1–2 hình trong paper.
 
 - **Giải quyết vấn đề gì:** "các thuật toán occupancy-damping có thật sự dùng được không, và với tham số nào?" — câu hỏi bất kỳ ai muốn dùng DOP đều phải trả lời.
 - **Vì sao:** rủi ro thấp nhất, giá trị cao nhất theo công sức.
@@ -234,7 +234,7 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 **Nội dung:** chạy 1 dataset như stream; pattern **ra đời → lớn lên → tắt dần → biến mất**; click vào 1 pattern → xem **tại sao nó đạt/không đạt**.
 
 - **Giải quyết vấn đề gì:** damping là khái niệm *trừu tượng*; không có gì thuyết phục bằng việc **thấy** một pattern mờ dần rồi biến mất.
-- **Phụ thuộc:** cửa sổ ε **làm cho Hướng B dễ hơn trước** — pattern biến mất vì *rời cửa sổ* (có lý do rõ ràng, hiển thị được), không phải vì ngưỡng tăng.
+- **Phụ thuộc:** cửa sổ minOcc **làm cho Hướng B dễ hơn trước** — pattern biến mất vì *rời cửa sổ* (có lý do rõ ràng, hiển thị được), không phải vì ngưỡng tăng.
 
 ### Hướng C — "Phòng thí nghiệm hiệu năng / đấu trường thuật toán"
 
@@ -247,7 +247,7 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 
 **A trước, B mỏng sau, C chỉ giữ phần đo lường.**
 
-> **Nếu chỉ làm được một việc:** làm **V2 (cửa sổ ε) + bound**. Đó là phần code nhỏ nhất mà đổi cả tính chất của hệ thống, và tạo ra một câu kết luận khoa học cụ thể.
+> **Nếu chỉ làm được một việc:** làm **V2 (cửa sổ minOcc) + bound**. Đó là phần code nhỏ nhất mà đổi cả tính chất của hệ thống, và tạo ra một câu kết luận khoa học cụ thể.
 
 ---
 
@@ -255,8 +255,8 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 
 | Module | Vai trò | Định vị |
 |---|---|---|
-| `dhopm-v1-standard` | **Oracle** | Bám sát paper, `ε = 0`. **Đóng băng.** Không thêm feature (trừ validator). Mọi thứ khác phải khớp nó khi `ε=0` (INV-I). |
-| `dhopm-v2-epsilon` | **Ngữ nghĩa mới** | Cửa sổ ε + handle 2 tầng + minSup 2 pha + `UB'(X)`. **Ưu tiên số 1.** |
+| `dhopm-v1-standard` | **Oracle** | Bám sát paper, `minOcc = 0`. **Đóng băng.** Không thêm feature (trừ validator). Mọi thứ khác phải khớp nó khi `minOcc=0` (INV-I). |
+| `dhopm-v2-minocc` | **Ngữ nghĩa mới** | Cửa sổ minOcc + handle 2 tầng + minSup 2 pha + `UB'(X)`. **Ưu tiên số 1.** |
 | `dhopm-v3-optimized` | **Kỹ thuật** | Tối ưu cấu trúc dữ liệu + Level 2 threading. **Cùng ngữ nghĩa V2**, chỉ khác cách làm. Profile trước, tối ưu sau — ưu tiên `DuboCalculator` (TreeMap mỗi node mỗi tầng) vì đây nhiều khả năng là hotspot số 1. |
 | `dhopm-v4-extreme` | **Trần hiệu năng** | Data-oriented thuần, Level 3. Chỉ giữ ý tưởng **đo được lợi**. Ghi rõ: đây là bài tập tối ưu hiệu năng, không phải đóng góp khoa học. |
 
@@ -271,11 +271,11 @@ Nghĩa là: **paper cần ~600 s cho 1 000 000 transaction synthetic, trong khi 
 ```
 implementation/
 ├── dhopm-common       # reader · config · contract · testkit · util · window math (giữ, + WindowMath + validator)
-├── dhopm-v1-standard  # oracle theo canonical, ε ≡ 0 (đóng băng)
-├── dhopm-v2-epsilon   # CỬA SỔ ε + handle ref1/ref2 + minSup 2 pha + UB'(X)   (MỚI — ưu tiên số 1)
+├── dhopm-v1-standard  # oracle theo canonical, minOcc ≡ 0 (đóng băng)
+├── dhopm-v2-minocc   # CỬA SỔ minOcc + handle ref1/ref2 + minSup 2 pha + UB'(X)   (MỚI — ưu tiên số 1)
 ├── dhopm-v3-optimized # tối ưu cấu trúc dữ liệu + Level 2                 (khi làm)
 ├── dhopm-v4-extreme   # data-oriented thuần + Level 3                      (khi làm)
-├── dhopm-bench        # đo nghiêm ngặt + sweep (∂, f, ε)                  (giữ, mở rộng)
+├── dhopm-bench        # đo nghiêm ngặt + sweep (∂, f, minOcc)                  (giữ, mở rộng)
 ├── dhopm-cli          # Manager mỏng: --json (one-shot) + serve JSONL stdio
 └── dhopm-app          # UI: 2 tab (Trends + Explain)                       (rút gọn)
 ```
@@ -286,10 +286,10 @@ implementation/
 |---|---|---|
 | 1 | **SPI / plugin discovery / `PluginRegistry`** | Có **4** engine đã biết trước tên. Hardcode một list factory là đủ và *rõ hơn*. YAGNI. |
 | 2 | **`ResourceManager` → native Windows/macOS** (D8/MA4) | Java không có API quota CPU portable. Nhu cầu thật đã giải quyết bằng `workers` + `--limit`. |
-| 3 | **Recovery / `JobLedger` / journal** | Sau khi có cửa sổ ε, một lần `mine` là vài giây ⇒ "khởi động lại biết đang làm gì" thành vấn đề giả. |
+| 3 | **Recovery / `JobLedger` / journal** | Sau khi có cửa sổ minOcc, một lần `mine` là vài giây ⇒ "khởi động lại biết đang làm gì" thành vấn đề giả. |
 | 4 | **Daemon TCP / remote LAN** | Mặc định: **JSONL qua stdio** — đủ cho cả demo lẫn test. |
 | 5 | **`JobManager` / `ResultAggregator` / config 3 cấp** | Có giá trị khi có nhiều engine, nhiều người gọi, chạy lâu. Hiện tại: 1 người gọi, 1 máy, chạy ngắn. |
-| 6 | **FE10 "bật/tắt C1–C12 lúc chạy"** | Đây là *xây IDE nghiên cứu*. **Giữ ở dạng "bảng tham số nâng cao"**: `f`, `∂`, `ε`, `workers`. Toggling *ngữ nghĩa canonical* → bỏ hoặc đẩy sang "chế độ giảng dạy". |
+| 6 | **FE10 "bật/tắt C1–C12 lúc chạy"** | Đây là *xây IDE nghiên cứu*. **Giữ ở dạng "bảng tham số nâng cao"**: `f`, `∂`, `minOcc`, `workers`. Toggling *ngữ nghĩa canonical* → bỏ hoặc đẩy sang "chế độ giảng dạy". |
 | 7 | **10 dataset nặng trong `mvn test`** | Tách sang profile/tag (`-Pheavy`). |
 | 8 | **Bổ sung `webview`** | Nên lấy (nhỏ, độ dài biến thiên → minh hoạ được sức mạnh prune của DUBO). |
 | 9 | **Utility-based mining (HUIM)** | Là **họ thuật toán khác**. Để thành đề tài/mở rộng sau. |
@@ -300,13 +300,13 @@ implementation/
 
 | ID | Hạng mục | Giải quyết | Cách làm | Rủi ro | Giá trị | Trạng thái |
 |---|---|---|---|---|---|---|
-| **R1** | **Cửa sổ ε + `Z`-bound + trần DO** | H1/H2/H3; limitation #2/#3/#4 | **V2** — `WindowMath`, handle 2 tầng, evict O(1), minSup 2 pha, `UB'(X)`, short-circuit; TC9–TC18 | Handle 2 tầng viết sai; DUBO sau evict | ★★★★★ | ⏳ **đã chốt, đang chờ code (G2)** |
+| **R1** | **Cửa sổ minOcc + `Z`-bound + trần DO** | H1/H2/H3; limitation #2/#3/#4 | **V2** — `WindowMath`, handle 2 tầng, evict O(1), minSup 2 pha, `UB'(X)`, short-circuit; TC9–TC18 | Handle 2 tầng viết sai; DUBO sau evict | ★★★★★ | ⏳ **đã chốt, đang chờ code (G2)** |
 | **R2** | Đọc Utility-FIMI | H8 → mở rộng sang HUIM | `UtilityTransactionReader` | Chậm test nặng → tách profile | ★★★★★ | ⏸ G7 |
 | **R3** | **`nDO` / ngưỡng chuẩn hoá** | limitation #1 | Đã **hạ cấp**: `∂ × N_eff` đã đủ | Phá TC1–TC8 nếu đổi mặc định | ★★☆☆☆ | ⏸ tuỳ chọn sau G2 |
 | **R4** | **Validator + cảnh báo `∂` khả thi** | H1, limitation #1 | `validate` command + `window` tra bảng; trả mã lỗi ổn định | — | ★★★★★ | ⏳ trong V2 |
 | **R5** | Tái tạo 1–2 hình của paper | Chứng minh trung thực | Script chạy dataset × ngưỡng, xuất CSV | Số liệu "xấu" **là kết quả** | ★★★★☆ | ⏳ sau G2 |
-| **R6** | **Sweep `(∂, f, ε)`** + operator's guide | limitation #1 ở dạng dùng được | `sweep` command | Bảng to | ★★★★☆ | ⏳ trong V2 |
-| **R7** | **Vòng đời pattern trong stream** | H5 | So 2 batch liên tiếp → `added`/`removed`/`survived` + **churn**; cửa sổ ε làm việc này tự nhiên hơn | Cần định nghĩa "tắt" | ★★★★☆ | ⏳ sau G2 |
+| **R6** | **Sweep `(∂, f, minOcc)`** + operator's guide | limitation #1 ở dạng dùng được | `sweep` command | Bảng to | ★★★★☆ | ⏳ trong V2 |
+| **R7** | **Vòng đời pattern trong stream** | H5 | So 2 batch liên tiếp → `added`/`removed`/`survived` + **churn**; cửa sổ minOcc làm việc này tự nhiên hơn | Cần định nghĩa "tắt" | ★★★★☆ | ⏳ sau G2 |
 | **R8** | Instrumentation chất lượng prune | Biến "V2 nhanh hơn" từ *claim thời gian* → *claim cấu trúc* | Counter đặt sau `if (enabled)` | Counter trong hot path | ★★★★☆ | ⏳ trong V2 |
 | **R9** | App mỏng 2 tab | Hướng B | Trends + Explain | Phụ thuộc R1+R7 | ★★★★☆ | ⏳ G6 |
 | **R10** | Dọn tài liệu + `DECISIONS.md` + CI | H7, H9 | Phụ lục C | Không có | ★★★☆☆ | ⏳ **đang làm** |
@@ -322,14 +322,14 @@ implementation/
 
 Mỗi mốc đều **độc lập tạo ra giá trị** — nếu hết thời gian thì dừng ở đâu cũng không phí.
 
-### G2 — Cửa sổ ε + chứng minh (ưu tiên số 1) · *"Đổi đẳng cấp phức tạp"*
-- **R1** (cửa sổ ε + bound + trần) · **R4** (validator) · **R8** (instrumentation)
+### G2 — Cửa sổ minOcc + chứng minh (ưu tiên số 1) · *"Đổi đẳng cấp phức tạp"*
+- **R1** (cửa sổ minOcc + bound + trần) · **R4** (validator) · **R8** (instrumentation)
 - **Xong khi:** bảng "trước / sau" cho ≥4 dataset; `kosarak` 200K→990K **phẳng** thay vì tăng; `mushroom ∂=6%` in ra cảnh báo thay vì chạy 300 s; xác định được giả thuyết §3.2 đúng hay sai; viết được 1 đoạn kết luận.
-- Chi tiết: `plans/02-EPSILON-WINDOW-VERSION-PLAN.md`, `phases/P2-G2.md`
+- Chi tiết: `plans/02-MINOCC-WINDOW-VERSION-PLAN.md`, `phases/P2-G2.md`
 
-### G3 — Tối ưu trên nền ε (2 tuần)
+### G3 — Tối ưu trên nền minOcc (2 tuần)
 - **R11** — profile thật, SoA/primitive, bỏ lớp Handle, Level 2 threading
-- **Xong khi:** ≡ V2 về kết quả (kể cả `ε > 0`); nhanh hơn V2 ở ≥ 3/4 dataset.
+- **Xong khi:** ≡ V2 về kết quả (kể cả `minOcc > 0`); nhanh hơn V2 ở ≥ 3/4 dataset.
 
 ### G4 — Extreme (không đặt hạn)
 - **R13** — data-oriented thuần, Level 3
@@ -353,8 +353,8 @@ Mỗi mốc đều **độc lập tạo ra giá trị** — nếu hết thời g
 
 | Mức | Tiêu chí |
 |---|---|
-| **Bắt buộc** | TC1–TC18 xanh · **ε=0 ⇒ V2/V3/V4 bit-for-bit ≡ V1** · INV-G giữ · median ≥3 lần + ghi phần cứng/JDK/workers · mọi quyết định có trong `DECISIONS.md` · không còn tài liệu mâu thuẫn · tài liệu nói đúng trạng thái thực tế |
-| **Cửa sổ ε** | Evict O(1) · bộ nhớ đỉnh gần như phẳng khi stream dài (≥10× N) · `window`/`validate` trả số liệu đúng · bảng ablation V1→V4 có cột "độ lệch ≤ ε" |
+| **Bắt buộc** | TC1–TC18 xanh · **minOcc=0 ⇒ V2/V3/V4 bit-for-bit ≡ V1** · INV-G giữ · median ≥3 lần + ghi phần cứng/JDK/workers · mọi quyết định có trong `DECISIONS.md` · không còn tài liệu mâu thuẫn · tài liệu nói đúng trạng thái thực tế |
+| **Cửa sổ minOcc** | Evict O(1) · bộ nhớ đỉnh gần như phẳng khi stream dài (≥10× N) · `window`/`validate` trả số liệu đúng · bảng ablation V1→V4 có cột "độ lệch ≤ minOcc" |
 | **Nếu chọn Hướng A** | Tái tạo được ≥1 hình của paper · giải thích được mâu thuẫn ngưỡng bằng số đo · có ≥1 mở rộng với phân tích before/after |
 | **Nếu chọn Hướng B** | Chạy được stream và thấy pattern bị damping · giải thích được 1 pattern không đạt · app không đứng hình khi mining |
 
@@ -364,11 +364,11 @@ Mỗi mốc đều **độc lập tạo ra giá trị** — nếu hết thời g
 
 | Rủi ro | Dấu hiệu sớm | Giảm thiểu |
 |---|---|---|
-| **ε làm sai kết quả so với paper** | Test TC18 lệch > ε | `ε=0 ⇒ ≡ V1` (INV-I) + TC18 so full-recompute |
+| **minOcc làm sai kết quả so với paper** | Test TC18 lệch > minOcc | `minOcc=0 ⇒ ≡ V1` (INV-I) + TC18 so full-recompute |
 | **Handle 2 tầng viết sai → đọc tham chiếu chết** | Crash lúc evict | INV-H; test TC13; **không `try/catch`** |
 | **∂ ngoài miền khả thi** | Benchmark ra 0 pattern | Validator + short-circuit + `window` in miền khả thi |
 | **Sunk cost vào V4-Extreme** | Tốn >2 tuần mà chưa có số liệu | Đặt "deadline giả" cho G2; trượt thì V4 về phụ lục |
-| **Giả thuyết H1 sai** (paper đúng, code sai) | Đọc lại định nghĩa `minSup` mới thấy khác | `ε=0` giữ nguyên đường RAW. Sai thì chỉ mất 1 ngày |
+| **Giả thuyết H1 sai** (paper đúng, code sai) | Đọc lại định nghĩa `minSup` mới thấy khác | `minOcc=0` giữ nguyên đường RAW. Sai thì chỉ mất 1 ngày |
 | Kết quả "xấu" khi tái tạo paper | Số pattern 0 ở ngưỡng của paper | Đây **là phát hiện**, không phải lỗi. Ghi rõ phương pháp và phạm vi kết luận |
 | App làm trễ nghiên cứu | Chưa xong G2 mà đã dựng UI | **App chỉ bắt đầu sau khi G2 có bảng số** |
 | Phạm vi creep sang HUIM | Bắt đầu nói về `utility` trong `Transaction` | Reader bỏ utility, **không** đụng model |
@@ -398,9 +398,9 @@ DO(X)       = Σ_{t∈T(X)} (|X| / |T_t|) · f^(TL − t)
 Z(f,TL)     = Σ_{k=0..TL−1} f^k = (1 − f^TL)/(1 − f)          ← trần của DO
 Z(X)        = Σ_{t∈T(X)} f^(TL − t)                            ← bound theo node
 UB'(X)      = min( DUBO(X), Z(X) )                             ← bound chặt hơn
-W(f,ε)      = ⌈ ln(ε(1−f)) / ln f ⌉                           ← kích thước cửa sổ
-               ε = 0 hoặc f = 1 ⇒ W = ∞                        ← ≡ paper
-               ε ≥ 1/(1−f) ⇒ lỗi cấu hình
+W(f,minOcc)      = ⌈ ln(minOcc(1−f)) / ln f ⌉                           ← kích thước cửa sổ
+               minOcc = 0 hoặc f = 1 ⇒ W = ∞                        ← ≡ paper
+               minOcc ≥ 1/(1−f) ⇒ lỗi cấu hình
 N_eff(TL)   = min(TL, W)
 minSup(TL)  = ∂ · N_eff(TL)                                    ← 2 giai đoạn
 ∂ khả thi   ≤ 1 / ((1−f) · W)
@@ -411,9 +411,9 @@ Kiểm chứng nhanh các bất biến (đã có test trong TestKit):
 
 1. `DO(X) ≤ Z(f,TL)` cho mọi X, mọi f.
 2. `Z(X) ≤ sup_win(X)` (⇒ C2 hợp lệ trên bản cửa sổ).
-3. `DO_win(X) ≥ DO_full(X) − ε` và `|DO_win − DO_full| ≤ ε` mọi X (INV-G).
+3. `DO_win(X) ≥ DO_full(X) − minOcc` và `|DO_win − DO_full| ≤ minOcc` mọi X (INV-G).
 4. `UB'(X) ≥ DO(Y)` mọi superset Y (Lemma 2 mở rộng).
-5. `ε = 0 ⇒ V2 ≡ V1` bit-for-bit (INV-I).
+5. `minOcc = 0 ⇒ V2 ≡ V1` bit-for-bit (INV-I).
 
 ---
 
@@ -447,7 +447,7 @@ Kiểm chứng nhanh các bất biến (đã có test trong TestKit):
 
 ## Tóm tắt một câu
 
-> Dự án đã **làm đúng thuật toán** và **thiếu lý do để tồn tại**; việc đáng làm nhất là **trả lời ba câu hỏi mà chính paper thừa nhận chưa có lời giải** — *chọn `∂, f, ε` bằng gì*, *prune thế nào cho thật*, *xử lý stream dài ra sao* — và **ý tưởng ε của tác giả đã trả lời cả ba câu trong một công thức duy nhất**; V2 là nơi biến nó thành code, V3/V4 là nơi biến nó thành tốc độ.
+> Dự án đã **làm đúng thuật toán** và **thiếu lý do để tồn tại**; việc đáng làm nhất là **trả lời ba câu hỏi mà chính paper thừa nhận chưa có lời giải** — *chọn `∂, f, minOcc` bằng gì*, *prune thế nào cho thật*, *xử lý stream dài ra sao* — và **ý tưởng minOcc của tác giả đã trả lời cả ba câu trong một công thức duy nhất**; V2 là nơi biến nó thành code, V3/V4 là nơi biến nó thành tốc độ.
 
 ---
 

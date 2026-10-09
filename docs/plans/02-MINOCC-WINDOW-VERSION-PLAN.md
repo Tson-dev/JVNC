@@ -1,8 +1,8 @@
-# DHOPM – Kế hoạch Phiên bản 2: Epsilon / Window
+# DHOPM – Kế hoạch Phiên bản 2: MinOcc / Window
 
-> Phiên bản **mở rộng ngữ nghĩa** của V1: thêm **ε (sai số hệ thống / ngưỡng dưới của DO)** ⇒ **cửa sổ suy giảm** `W(f,ε)`, `minSup` **hai giai đoạn**, cơ chế **handle hai tầng `ref1 → ref2`** để evict **O(1)**, bound **`min(DUBO, Z(X))`** và **short-circuit theo trần DO**.
+> Phiên bản **mở rộng ngữ nghĩa** của V1: thêm **minOcc (ngưỡng occupancy / ngưỡng dưới của DO)** ⇒ **cửa sổ suy giảm** `W(f,minOcc)`, `minSup` **hai giai đoạn**, cơ chế **handle hai tầng `ref1 → ref2`** để evict **O(1)**, bound **`min(DUBO, Z(X))`** và **short-circuit theo trần DO**.
 >
-> Ở `ε = 0`, V2 **bám sát V1 bit-for-bit** (INV-I) — đây là điều kiện nghiệm thu bắt buộc.
+> Ở `minOcc = 0`, V2 **bám sát V1 bit-for-bit** (INV-I) — đây là điều kiện nghiệm thu bắt buộc.
 
 ---
 
@@ -12,8 +12,8 @@
 |---|---|
 | **Document ID** | DHOPM-PLAN-002 |
 | **Version** | 1.0 (Draft) |
-| **Bí danh** | **V2 — Epsilon / Window** |
-| **Module** | `implementation/dhopm-v2-epsilon` |
+| **Bí danh** | **V2 — MinOcc / Window** |
+| **Module** | `implementation/dhopm-v2-minocc` |
 | **Phụ thuộc** | `00-OVERALL-PLAN.md` §2.3, §2.4, §2.5, §2.7 (C7–C12, INV-G…INV-J) · `01-STANDARD-VERSION-PLAN.md` |
 | **Ý tưởng nguồn** | `docs/Draft Idea.txt` (tác giả) |
 | **Quyết định** | D9, D10, D11, D12, D14 trong `00-OVERALL-PLAN.md` §10 và `docs/DECISIONS.md` |
@@ -30,17 +30,17 @@
 
 ## 1. Mục tiêu
 
-1. **Chứng minh giá trị của ε**: biến "đọc toàn bộ lịch sử stream" thành "duy trì cửa sổ trượt hữu hạn" — bộ nhớ và thời gian gần như **độc lập độ dài stream**.
-2. **Định nghĩa & hiện thực** `W(f,ε)`, `N_eff`, `minSup` hai giai đoạn, GĐ0 evict O(1) bằng handle hai tầng.
-3. **Giữ đúng bất biến bảo toàn**: `ε = 0 ⇒ V2 ≡ V1 ≡ paper` (INV-I); `|DO_win − DO_full| ≤ ε` (INV-G).
-4. **Đo lường**: số lần evict, entry sống/chết, độ lệch DO so với full-recompute, so sánh V1 ↔ V2 trên cùng `(∂, f, ε, dataset)`.
+1. **Chứng minh giá trị của minOcc**: biến "đọc toàn bộ lịch sử stream" thành "duy trì cửa sổ trượt hữu hạn" — bộ nhớ và thời gian gần như **độc lập độ dài stream**.
+2. **Định nghĩa & hiện thực** `W(f,minOcc)`, `N_eff`, `minSup` hai giai đoạn, GĐ0 evict O(1) bằng handle hai tầng.
+3. **Giữ đúng bất biến bảo toàn**: `minOcc = 0 ⇒ V2 ≡ V1 ≡ paper` (INV-I); `|DO_win − DO_full| ≤ minOcc` (INV-G).
+4. **Đo lường**: số lần evict, entry sống/chết, độ lệch DO so với full-recompute, so sánh V1 ↔ V2 trên cùng `(∂, f, minOcc, dataset)`.
 5. **Cải thiện pruning**: `UB'(X) = min(DUBO(X), Z(X))` — câu trả lời trực tiếp cho hạn chế tự thừa nhận của paper.
 
 ## 2. Vì sao cần V2 (bài toán gốc)
 
 Trong công thức DO, một transaction ở tuổi `k` đóng góp `O(X,T) × f^k`. Với `f` nhỏ và stream dài:
 
-- Số transaction ở **đuôi xa** có `f^k < ε` gần như **không đóng góp gì** cho bất kỳ DO nào, nhưng vẫn phải **đọc, lưu, duyệt** mỗi lần.
+- Số transaction ở **đuôi xa** có `f^k < minOcc` gần như **không đóng góp gì** cho bất kỳ DO nào, nhưng vẫn phải **đọc, lưu, duyệt** mỗi lần.
 - DHO-List phình theo N ⇒ **O(N)** bộ nhớ, **O(N)** thời gian quét.
 
 Hệ quả: ngay cả khi đã có tối ưu tốt (V3/V4), **phần tử không thay đổi được** là việc xử lý dữ liệu không có giá trị. V2 xử lý đúng ở tầng **ngữ nghĩa**, trước khi tối ưu kỹ thuật.
@@ -54,9 +54,9 @@ Hệ quả: ngay cả khi đã có tối ưu tốt (V3/V4), **phần tử không
 - GĐ0 — cửa sổ & evict O(1) bằng handle `ref1 → ref2`; `head` offset cho entry chết.
 - `minSup` hai giai đoạn; `WindowInfo` (kích thước cửa sổ, số transaction hiệu dụng).
 - Bound `UB'(X) = min(DUBO(X), Z(X))`; short-circuit toàn cục theo trần `Z(f,TL)`.
-- TC9–TC18; hồi quy TC1–TC8 (`ε=0`) trên V2.
+- TC9–TC18; hồi quy TC1–TC8 (`minOcc=0`) trên V2.
 - CLI: `window`, `validate`, `sweep`; `WindowAwareEngine` để quan sát vòng đời cửa sổ.
-- Báo cáo đo ε: evict count, tỉ lệ entry sống, độ lệch DO, ablation V1 ↔ V2.
+- Báo cáo đo minOcc: evict count, tỉ lệ entry sống, độ lệch DO, ablation V1 ↔ V2.
 
 **Ngoài phạm vi (để dành V3/V4):**
 - Bỏ xích handle, dùng chỉ số `int` vào circular buffer (V3).
@@ -68,11 +68,11 @@ Hệ quả: ngay cả khi đã có tối ưu tốt (V3/V4), **phần tử không
 
 | NFR | Yêu cầu |
 |---|---|
-| **N1 Tương đương paper** | `ε = 0` (hoặc `W ≥ TL`) ⇒ **bit-for-bit ≡ V1** (INV-I); TC1–TC8 xanh trên V2 |
-| **N2 Sai số cửa sổ** | Mọi pattern: `DO_win(X) ≥ DO_full(X) − ε − ε_cmp` và `|DO_win − DO_full| ≤ ε + ε_cmp` (INV-G) |
+| **N1 Tương đương paper** | `minOcc = 0` (hoặc `W ≥ TL`) ⇒ **bit-for-bit ≡ V1** (INV-I); TC1–TC8 xanh trên V2 |
+| **N2 Sai số cửa sổ** | Mọi pattern: `DO_win(X) ≥ DO_full(X) − minOcc − ε` và `|DO_win − DO_full| ≤ minOcc + ε` (INV-G) |
 | **N3 Evict O(1)** | Xoá 1 transaction khỏi cửa sổ tốn **O(1)**, không phụ thuộc số node |
 | **N4 Bộ nhớ độc lập N** | Peak memory **gần như phẳng** khi stream dài ra (đo được, ≥10× số transaction) |
-| **N5 Determinism** | Cùng `(∂, f, ε, TL)` ⇒ cùng tập DOP, bất kể pool size (INV-E, C5) |
+| **N5 Determinism** | Cùng `(∂, f, minOcc, TL)` ⇒ cùng tập DOP, bất kể pool size (INV-E, C5) |
 | **N6 Thread-safety** | Evict đơn luồng trước mọi pha song song; không race trên handle |
 | **N7 Validator** | Cấu hình sai ⇒ **báo lỗi rõ ràng trước khi chạy**; `∂` ngoài miền khả thi ⇒ cảnh báo kèm số liệu |
 | **N8 Quan sát được** | Có API báo cáo: số lần evict, entry sống/chết, `W`, `N_eff`, `minSup`, trần `Z` |
@@ -84,30 +84,30 @@ Hệ quả: ngay cả khi đã có tối ưu tốt (V3/V4), **phần tử không
 Canonical (xem `00-OVERALL-PLAN.md` §2.2). Triển khai:
 
 ```
-WindowMath.computeWindow(f, epsilon):
-    if epsilon == 0        -> WindowInfo.INFINITE   (W = ∞)
+WindowMath.computeWindow(f, minOcc):
+    if minOcc == 0        -> WindowInfo.INFINITE   (W = ∞)
     if f == 1.0            -> WindowInfo.INFINITE   (W = ∞)
-    if epsilon >= 1/(1-f)  -> throw IllegalArgumentException  (W = 0 → cửa sổ rỗng)
-    W = ceil( ln(epsilon * (1 - f)) / ln(f) )
+    if minOcc >= 1/(1-f)  -> throw IllegalArgumentException  (W = 0 → cửa sổ rỗng)
+    W = ceil( ln(minOcc * (1 - f)) / ln(f) )
     if W > maxWindow       -> throw IllegalArgumentException  (cấp phát không thiện thực)
     return W
 
 // ⚠️ D38: maxPartial có HAI công thức — validator phải dùng công thức CHÍNH XÁC
-WindowMath.maxPartialExact(f, epsilon, TL):
-    W       = computeWindow(f, epsilon)          // ∞ nếu epsilon==0 hoặc f==1
+WindowMath.maxPartialExact(f, minOcc, TL):
+    W       = computeWindow(f, minOcc)          // ∞ nếu minOcc==0 hoặc f==1
     N_eff   = min(TL, W)                          // W=∞ → N_eff = TL
     Z       = (f == 1.0) ? TL : (1 - f^TL) / (1 - f)
     return Z / N_eff                              // ∂ tối đa khả thi, hữu hạn
 
 // Chỉ để ước lượng / in bảng tra cứu (TL → ∞). KHÔNG dùng để chặn tham số.
-WindowMath.maxPartialAsymptotic(f, epsilon):
-    W = computeWindow(f, epsilon)
+WindowMath.maxPartialAsymptotic(f, minOcc):
+    W = computeWindow(f, minOcc)
     return (W is ∞) ? 1.0 : 1.0 / ((1 - f) * W)
 ```
 
 > ⚠️ **Vì sao phải tách hai công thức (D38).** `maxPartialAsymptotic` là **giá trị ở giới hạn `TL → ∞`**, tức giá trị tại **ranh giới pha 2**. Ở `TL` ngắn (pha 1) nó **sai lệch một bậc độ lớn**, và luôn **nhỏ hơn** giá trị chính xác ⇒ dùng nhầm để chặn tham số sẽ **chặn oan**:
 >
-> | `f` | `ε` | `W` | `TL` | `N_eff` | `Z(f,TL)` | **chính xác** `Z/N_eff` | **xấp xỉ** `1/((1−f)W)` | Chênh lệch |
+> | `f` | `minOcc` | `W` | `TL` | `N_eff` | `Z(f,TL)` | **chính xác** `Z/N_eff` | **xấp xỉ** `1/((1−f)W)` | Chênh lệch |
 > |---|---|---|---|---|---|---|---|---|
 > | 0.9 | 1e-6 | 153 | **4** | 4 | 3.439 | **85.98 %** | 6.54 % | **×13.1** |
 > | 0.9 | 1e-3 | 88 | **20** | 20 | 8.784 | **43.92 %** | 11.36 % | **×3.9** |
@@ -205,7 +205,7 @@ minSup(TL) = ∂ × N_eff(TL)
 ```
 Z(f, TL) = Σ_{k=0..TL-1} f^k = (1 - f^TL)/(1 - f)      (f = 1 -> TL)
 
-nếu  minSup > Z(f, TL) + ε_cmp:
+nếu  minSup > Z(f, TL) + ε:
     -> kết quả RỖNG, trả về ngay (O(1)), kèm cảnh báo:
        "∂=…, f=… ⇒ minSup=… > Z=… ; không thể có DOP. Giảm ∂ hoặc tăng f."
     -> miền khả thi:  ∂ <= 1 / ((1 - f) * W)
@@ -229,7 +229,7 @@ Có một lo ngại hiển nhiên: DUBO dựa trên giả định "các transact
 
 - Mọi tính toán (DO, DUBO, `Z(X)`, support) đều thực hiện **chỉ trên tập entry sống** ⇒ toàn bộ phép tính nằm trên **cùng một instance** (cửa sổ hiện tại).
 - Vì vậy **Lemma 2 của paper vẫn đúng** cho thể hiện đang được duyệt.
-- DUBO **vẫn là trên trên**: evict chỉ bỏ các transaction có đóng góp `< ε` ⇒ sai số ≤ ε (INV-G).
+- DUBO **vẫn là trên trên**: evict chỉ bỏ các transaction có đóng góp `< minOcc` ⇒ sai số ≤ minOcc (INV-G).
 
 ### 5.6 Threading Level 1
 
@@ -244,7 +244,7 @@ Giữ nguyên khung Level 1 của V1 (§5 trong `01-STANDARD-VERSION-PLAN.md`):
 
 | Lớp | Trách nhiệm |
 |---|---|
-| `dhopm.common.window.WindowMath` | **công thức `W(f,ε)`** (dùng chung) |
+| `dhopm.common.window.WindowMath` | **công thức `W(f,minOcc)`** (dùng chung) |
 | `dhopm.common.window.WindowInfo` | record `(windowSize, effectiveTransactions, minSup, maxDO, evictions, liveEntries, deadEntries)` |
 | `dhopm.common.window.ParameterValidator` | kiểm tra miền tham số + cảnh báo `∂` khả thi |
 | `dhopm.common.contract.WindowAwareEngine` | `addWindowListener` (mới) |
@@ -266,26 +266,26 @@ Giữ nguyên khung Level 1 của V1 (§5 trong `01-STANDARD-VERSION-PLAN.md`):
 
 | Test | Kỳ vọng |
 |---|---|
-| **TC1–TC8 với `ε = 0` trên V2** | **bit-for-bit ≡ V1** (INV-I) |
-| **TC9** | Cùng dữ liệu/tham số TC1, `ε = 0` ⇒ kết quả bit-for-bit = TC1 |
-| **TC10** | Chọn `ε` sao cho `W ≥ TL` ⇒ ≡ paper |
-| **TC12** | `f = 1` + `ε > 0` ⇒ `W = ∞` ⇒ ≡ TC5 |
+| **TC1–TC8 với `minOcc = 0` trên V2** | **bit-for-bit ≡ V1** (INV-I) |
+| **TC9** | Cùng dữ liệu/tham số TC1, `minOcc = 0` ⇒ kết quả bit-for-bit = TC1 |
+| **TC10** | Chọn `minOcc` sao cho `W ≥ TL` ⇒ ≡ paper |
+| **TC12** | `f = 1` + `minOcc > 0` ⇒ `W = ∞` ⇒ ≡ TC5 |
 
 ### 6.2 Test ngữ nghĩa cửa sổ
 
 | TC | Mục đích | Kỳ vọng |
 |---|---|---|
-| **TC11** | `W ≪ TL` | mọi `DO_win` lệch `DO_full` **≤ ε** (INV-G); số DOP ≤ kết quả full |
+| **TC11** | `W ≪ TL` | mọi `DO_win` lệch `DO_full` **≤ minOcc** (INV-G); số DOP ≤ kết quả full |
 | **TC13** | **entry chết là tiền tố** | `head` dịch đúng sau nhiều lần evict; `support = size − head`; không sót entry |
 | **TC14** | **minSup 2 pha** | `TL` đi qua mốc `W`: `minSup` tăng tới `∂×W` rồi **đóng băng** |
 | **TC16** | **validator + short-circuit** | `∂×N_eff > Z(f,TL)` ⇒ ∅ **tức thì** + cảnh báo có số liệu |
 | **TC17** | **ví dụ "item A"** của `Draft Idea.txt` | A ngoài cửa sổ 1000 lần + trong cửa sổ 1 lần ⇒ `support_sống = 1 < minSup` ⇒ bị C2 loại ở GĐ2 |
-| **TC18** | **window vs full-recompute** trên nhiều `(∂, f, ε)` | `∀X: DO_win(X) ≥ DO_full(X) − ε − ε_cmp`; mọi DOP_full hoặc là DOP_win, hoặc lệch ≤ ε |
+| **TC18** | **window vs full-recompute** trên nhiều `(∂, f, minOcc)` | `∀X: DO_win(X) ≥ DO_full(X) − minOcc − ε`; mọi DOP_full hoặc là DOP_win, hoặc lệch ≤ minOcc |
 
 ### 6.3 Test trường hợp biên tham số (bắt buộc)
 
 Bảng trường hợp biên ở `00-OVERALL-PLAN.md` §6.4 (E1–E10) phải có test tương ứng — đặc biệt:
-- **E7:** `ε ≥ 1/(1−f)` ⇒ **ném lỗi cấu hình** rõ ràng.
+- **E7:** `minOcc ≥ 1/(1−f)` ⇒ **ném lỗi cấu hình** rõ ràng.
 - **E8:** `∂ = 0` ⇒ `minSup = 0` ⇒ khả thi nhưng **cảnh báo bùng nổ output**.
 - **E2:** `f = 1, ∂ = 1` ⇒ `W = ∞`, `minSup = TL`, `Z = TL` ⇒ khả thi lý thuyết nhưng **suy biến** → cảnh báo.
 - **E5:** `∂ = 0.15` với `N_eff = W` ⇒ `minSup` vượt trần ⇒ ∅ (minh hoạ ∂=0.15 chỉ dùng được khi `N_eff` nhỏ — TC1).
@@ -295,17 +295,17 @@ Bảng trường hợp biên ở `00-OVERALL-PLAN.md` §6.4 (E1–E10) phải c�
 | Lệnh | Mục đích V2 |
 |---|---|
 | `mine`/`detail`/`stream`/`golden`/`inspect` | như V1, **cộng** thông tin cửa sổ trong output |
-| **`window`** | In bảng tra cứu `W(f,ε)`, `N_eff`, `minSup`, trần `Z(f,TL)`, miền `∂` khả thi — **không cần dataset** |
-| **`validate`** | Kiểm tra cấu hình, báo cảnh báo (ε quá lớn, ∂ ngoài miền, W vượt `maxWindow`) — trước khi chạy |
-| **`sweep`** | Quét nhiều tổ hợp `(ε, ∂, f)` → bảng kết quả (số DOP, runtime, memory, độ dài TB) |
+| **`window`** | In bảng tra cứu `W(f,minOcc)`, `N_eff`, `minSup`, trần `Z(f,TL)`, miền `∂` khả thi — **không cần dataset** |
+| **`validate`** | Kiểm tra cấu hình, báo cảnh báo (minOcc quá lớn, ∂ ngoài miền, W vượt `maxWindow`) — trước khi chạy |
+| **`sweep`** | Quét nhiều tổ hợp `(minOcc, ∂, f)` → bảng kết quả (số DOP, runtime, memory, độ dài TB) |
 | `golden` | Chạy **TC1–TC18** (TC9–TC18 chỉ V2+) |
 
 ## 8. Công việc & Milestone (V2)
 
 **M1 – Nền tảng cửa sổ trong `dhopm-common`**
-- [ ] `WindowMath.computeWindow(f, ε)` + `WindowMath.maxDO(f, TL)` + `WindowInfo` + `ParameterValidator`.
+- [ ] `WindowMath.computeWindow(f, minOcc)` + `WindowMath.maxDO(f, TL)` + `WindowInfo` + `ParameterValidator`.
 - [ ] `WindowMathTest`: đối chiếu bảng tra cứu `W` (plan tổng thể §2.3.1) và bảng `∂` khả thi.
-- [ ] Đổi tên tham số `epsilon` cũ → `epsilonCmp` trong `MiningConfig`; thêm `epsilon` (cửa sổ).
+- [ ] Thêm tham số `minOcc` (cửa sổ; lib default `1e-6`) vào `MiningConfig`; `epsilon` (`1e-9`) giữ cho sai số so sánh.
 - [ ] `WindowAwareEngine` + `WindowListener` vào contract.
 
 **M2 – Handle & Evict (GĐ0)**
@@ -319,23 +319,23 @@ Bảng trường hợp biên ở `00-OVERALL-PLAN.md` §6.4 (E1–E10) phải c�
 
 **M4 – Bound & Mining**
 - [ ] `ZCalculator` (`Z(X)`, `Z(f,TL)`), `DUBOCalculator` trả `UB'(X) = min(DUBO, Z(X))`.
-- [ ] Short-circuit toàn cục khi `minSup > Z(f,TL)+ε_cmp` + cảnh báo.
+- [ ] Short-circuit toàn cục khi `minSup > Z(f,TL)+ε` + cảnh báo.
 - [ ] `Miner` DFS: C2 dùng support sống; prune bằng `UB'`.
 
 **M5 – Nghiệm thu đúng đắn**
-- [ ] TC1–TC8 (`ε=0`) trên V2 **bit-for-bit ≡ V1**.
+- [ ] TC1–TC8 (`minOcc=0`) trên V2 **bit-for-bit ≡ V1**.
 - [ ] TC9–TC18 xanh; E1–E10 xanh.
 - [ ] Determinism qua nhiều pool size.
 
 **M6 – Đo lường & tài liệu**
 - [ ] Đo evict count, live/dead entries, độ lệch DO, ablation V1 ↔ V2.
 - [ ] CLI `window`/`validate`/`sweep`.
-- [ ] Bộ tài liệu riêng `dhopm-v2-epsilon` + báo cáo đo ε.
+- [ ] Bộ tài liệu riêng `dhopm-v2-minocc` + báo cáo đo minOcc.
 
 ## 9. Nghiệm thu & "Done" (V2)
 
-- [ ] **`ε = 0` ⇒ V2 ≡ V1 bit-for-bit** (INV-I).
-- [ ] `|DO_win − DO_full| ≤ ε` (INV-G) trên toàn bộ benchmark.
+- [ ] **`minOcc = 0` ⇒ V2 ≡ V1 bit-for-bit** (INV-I).
+- [ ] `|DO_win − DO_full| ≤ minOcc` (INV-G) trên toàn bộ benchmark.
 - [ ] Evict **O(1)**; bộ nhớ đỉnh **gần như phẳng** khi stream dài (NFR-4, đo được ≥10× N).
 - [ ] TC9–TC18 + E1–E10 xanh.
 - [ ] Validator báo lỗi/cảnh báo đúng; short-circuit trả ∅ tức thì.
@@ -347,13 +347,13 @@ Bảng trường hợp biên ở `00-OVERALL-PLAN.md` §6.4 (E1–E10) phải c�
 
 | Rủi ro | Xử lý |
 |---|---|
-| **ε làm sai kết quả so với paper** | `ε=0 ⇒ ≡ V1` (INV-I) + TC9–TC10 + TC18 kiểm độ lệch |
+| **minOcc làm sai kết quả so với paper** | `minOcc=0 ⇒ ≡ V1` (INV-I) + TC9–TC10 + TC18 kiểm độ lệch |
 | **Handle 2 tầng viết sai → đọc tham chiếu chết** | INV-H; test TC13; **không `try/catch` để bắt dereference chết** |
 | Evict không đồng bộ giữa các node | Evict đơn luồng trước mọi pha song song (C10); dời `head` nội bộ mỗi node ⇒ không phụ thuộc thứ tự |
 | DUBO không còn hợp lệ sau evict | DUBO/Z tính **chỉ trên entry sống** ⇒ Lemma 2 vẫn đúng (mục 5.5) |
 | Bộ nhớ phình giữa hai lần mine | Evict trong `loadBatch` (mục 5.1) |
 | **∂ người dùng chọn nằm ngoài miền khả thi** | Validator + short-circuit + lệnh `window` in miền khả thi |
-| ε quá lớn ⇒ `W=0` | Validator từ chối (E7) |
+| minOcc quá lớn ⇒ `W=0` | Validator từ chối (E7) |
 
 ---
 

@@ -8,7 +8,7 @@
 |---|---|
 | **Document ID** | DHOPM-UI-000 |
 | **Version** | 0.2 (Draft – planning) |
-| **Trạng thái** | 🕓 Draft — chưa đồng bộ hoàn toàn với 4 phiên bản / cửa sổ ε |
+| **Trạng thái** | 🕓 Draft — chưa đồng bộ hoàn toàn với 4 phiên bản / cửa sổ minOcc |
 | **Phụ thuộc** | SRS `DHOPM-SRS.md` (mục 3: FE7/FE9/FE10/FE12; mục 9) ; `docs/DECISIONS.md` ; plan tổng thể (dataset, benchmark) |
 | **Triển khai** | Giai đoạn **G4** (lập plan riêng khi tới) |
 
@@ -18,7 +18,7 @@
 
 App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 1. **So sánh hiệu năng** 4 engine (V1/V2/V3/V4) trên cùng dataset/tham số.
-2. **So sánh kết quả** (tập DOP, giá trị DO) giữa 4 engine — kèm **độ lệch ε** của V2.
+2. **So sánh kết quả** (tập DOP, giá trị DO) giữa 4 engine — kèm **độ lệch minOcc** của V2.
 3. **Debug nội bộ thuật toán** + **sửa đổi chi tiết thuật toán** rồi chạy lại (debug app — FE10).
 
 ## 2. Nguyên tắc trình bày
@@ -35,7 +35,7 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│  Toolbar: [Dataset ▾] [∂ ▾] [f ▾] [Workers] [ε] [Engine ☑☐☐☐ ≥1]   │
+│  Toolbar: [Dataset ▾] [∂ ▾] [f ▾] [Workers] [minOcc] [Engine ☑☐☐☐ ≥1]   │
 │           [Run] [Reset] [Export…]                      [Theme ▾]  │
 ├──────────┬───────────────────────────────────────────────────────────┤
 │ Sidebar  │            Vùng nội dung — Tab chính                      │
@@ -56,7 +56,7 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 
 ## 4. Tab 1 — So sánh Hiệu năng (benchmark)
 
-**So sánh gì:** V1 vs V2 vs V3 vs V4 trên **cùng dataset + tham số `(∂, f, ε, TL)`**, sau khi chạy mỗi engine.
+**So sánh gì:** V1 vs V2 vs V3 vs V4 trên **cùng dataset + tham số `(∂, f, minOcc, TL)`**, sau khi chạy mỗi engine.
 
 **Các giá trị so sánh & đồ thị:**
 
@@ -68,8 +68,8 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 | G4 | Throughput | **Scatter/bar**: DOP/s trên từng dataset | Có thể để trong bảng tổng nếu ít dataset |
 | G5 | Scalability (kosarak cắt 200K→990K) | **Line chart** runtime & memory theo số transaction | Trục X = size dataset |
 | G6 | Số pattern DOP / số node khám phá | Bar (bảng kèm) | Kiểm chứng 4 engine cho cùng số (INV-E) |
-| **G7** | **Hiệu quả cửa sổ ε (chỉ V2+):** số lần evict, entry sống/chết, tỉ lệ giữ lại | Bar theo batch + **Line** tỉ lệ sống theo TL | Chứng minh cửa sổ có tác dụng (NFR-4, FE6) |
-| **G8** | **Độ lệch ngữ nghĩa (chỉ V2+):** `max_X \|DO_win − DO_full\|` và ngưỡng ε | Bar: cột thực đo vs đường ngưỡng ε | Kiểm chứng INV-G (NFR-EPS). **= 0 khi ε = 0** |
+| **G7** | **Hiệu quả cửa sổ minOcc (chỉ V2+):** số lần evict, entry sống/chết, tỉ lệ giữ lại | Bar theo batch + **Line** tỉ lệ sống theo TL | Chứng minh cửa sổ có tác dụng (NFR-4, FE6) |
+| **G8** | **Độ lệch ngữ nghĩa (chỉ V2+):** `max_X \|DO_win − DO_full\|` và ngưỡng minOcc | Bar: cột thực đo vs đường ngưỡng minOcc | Kiểm chứng INV-G (NFR-EPS). **= 0 khi minOcc = 0** |
 | G9 | Chi tiết từng batch: `minSup` hiện tại, `W`, `N_eff`, TL, #trans | Bảng | Ngữ cảnh cho latency; thấy rõ **pha 1 → pha 2** của `minSup` |
 
 **Trình bày:** 3–6 card tổng (runtime total, peak mem, throughput, #DOP, #node) hàng đầu; bên dưới là grid biểu đồ G1–G5 + bảng số đầy đủ (export CSV).
@@ -95,10 +95,10 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 
 | # | Khu vực | Nội dung hiển thị | Thao tác (FE10) |
 |---|---|---|---|
-| D1 | Thuộc tính chạy | `∂`, `f`, `ε`, `TL`, tổng trans, **`W`, `N_eff`, `minSup` hiện tại**, trần `Z(f,TL)` | Thay đổi `∂/f/ε` → nút **Run lại** |
+| D1 | Thuộc tính chạy | `∂`, `f`, `minOcc`, `TL`, tổng trans, **`W`, `N_eff`, `minSup` hiện tại**, trần `Z(f,TL)` | Thay đổi `∂/f/minOcc` → nút **Run lại** |
 | **D1a** | **Trạng thái cửa sổ (V2+)** | `W = …` hoặc `∞`, `N_eff`, số lần evict, entry sống/chết, **ngưỡng `∂` tối đa khả thi** | Xem (read-only); cảnh báo đỏ nếu `∂` vượt miền khả thi |
-| D2 | **Bảng canonical C1–C12** (tham chiếu) | C1 decay trong DUBO · C2 skip khi `sup<minSup` · C3 sort stable · C4 `ε_cmp` · C5 thứ tự cộng · C6 chuẩn hoá pattern · **C7–C12 ngữ nghĩa ε/cửa sổ** | ⛔ **Không bật/tắt từng quyết định** (đã bác bỏ — `DECISIONS.md` §6). Chỉ hiển thị + đánh dấu quyết định nào phiên bản đang dùng |
-| D2a | **Tham số nghiên cứu** | `windowOverride`, tùy chọn tối ưu V3/V4 | Ghi đè `W` ⇒ **cảnh báo "research-mode"** bắt buộc (D40); kết quả không so được với lần chạy ε thuần |
+| D2 | **Bảng canonical C1–C12** (tham chiếu) | C1 decay trong DUBO · C2 skip khi `sup<minSup` · C3 sort stable · C4 `ε` · C5 thứ tự cộng · C6 chuẩn hoá pattern · **C7–C12 ngữ nghĩa minOcc/cửa sổ** | ⛔ **Không bật/tắt từng quyết định** (đã bác bỏ — `DECISIONS.md` §6). Chỉ hiển thị + đánh dấu quyết định nào phiên bản đang dùng |
+| D2a | **Tham số nghiên cứu** | `windowOverride`, tùy chọn tối ưu V3/V4 | Ghi đè `W` ⇒ **cảnh báo "research-mode"** bắt buộc (D40); kết quả không so được với lần chạy minOcc thuần |
 | D3 | Global DHO-List | Bảng node: item, **support sống**, count, DO, số entries | Click node → highlight entries (TID) |
 | D4 | Entries của node | Danh sách `(tid, len, sống/chết)` — entry đã evict hiện mờ | Filter theo TID / chỉ entry sống |
 | D5 | DUBO của prefix chọn | Các nhóm length (n_k, T_k, DUBO(k)) + DUBO cuối | Chọn prefix; xem từng group |
@@ -108,9 +108,9 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 | D8 | Counters | Số node khám phá, số nhánh cắt, số pattern | Cập nhật live |
 | D9 | Cấu hình threading/DS (theo engine) | `workers`, (V3) chọn DS (mảng vs Set, decay lookup on/off), construction-parallel, (V4) pipeline option | Thay đổi → Run lại; xem ảnh hưởng runtime (liên kết Tab1) |
 
-**Trình bày:** layout 2 cột — trái: cây trace/hệ thống phân cấp (D7/D3); phải: panel chi tiết của phần tử chọn (D4/D5/D6/D8). Panel trên cùng là D1/D1a/D2/D2a (config + bảng canonical) với nút Run. Thay đổi **tham số chạy** (`∂/f/ε/workers/windowOverride`) → Run lại và so delta với lần chạy chuẩn (chênh lệch hiển thị đỏ/xanh).
+**Trình bày:** layout 2 cột — trái: cây trace/hệ thống phân cấp (D7/D3); phải: panel chi tiết của phần tử chọn (D4/D5/D6/D8). Panel trên cùng là D1/D1a/D2/D2a (config + bảng canonical) với nút Run. Thay đổi **tham số chạy** (`∂/f/minOcc/workers/windowOverride`) → Run lại và so delta với lần chạy chuẩn (chênh lệch hiển thị đỏ/xanh).
 
-**Quan trọng:** khi bật "so sánh sau sửa", app chạy cả lần chuẩn (canonical) và lần đã sửa → hiển thị **delta DO từng pattern + delta runtime/memory** (tái dùng Tab1/Tab2). Với tham số ε, mọi lần chạy **phải hiển thị `ε`** — vì ε thay đổi tập DOP (C12), hai lần chạy khác ε là **hai thí nghiệm khác nhau**, không so sánh được (D41).
+**Quan trọng:** khi bật "so sánh sau sửa", app chạy cả lần chuẩn (canonical) và lần đã sửa → hiển thị **delta DO từng pattern + delta runtime/memory** (tái dùng Tab1/Tab2). Với tham số minOcc, mọi lần chạy **phải hiển thị `minOcc`** — vì minOcc thay đổi tập DOP (C12), hai lần chạy khác minOcc là **hai thí nghiệm khác nhau**, không so sánh được (D41).
 
 ## 7. Tab 4 — Dữ liệu thô (Xem)
 
@@ -119,7 +119,7 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 | R1 | Danh sách transaction | Bảng (TID, độ dài, items), filter theo TID/range, độ dài |
 | R2 | Chi tiết 1 transaction | Items phân biệt, độ dài (sau chuẩn hoá) |
 | R3 | Thống kê dataset | Số trans, distinct items, avg len, histogram độ dài — đối chiếu bảng 5.2 |
-| **R4** | **Tra cứu cửa sổ (FE12)** | Bảng `W(f,ε)` tra cứu nhanh + `∂` tối đa khả thi, `Z(f,TL)`, mã lỗi validator | Chạy **không cần dataset**; nút "kiểm tra cấu hình hiện tại" |
+| **R4** | **Tra cứu cửa sổ (FE12)** | Bảng `W(f,minOcc)` tra cứu nhanh + `∂` tối đa khả thi, `Z(f,TL)`, mã lỗi validator | Chạy **không cần dataset**; nút "kiểm tra cấu hình hiện tại" |
 
 ## 8. Thành phần dùng chung
 
@@ -134,7 +134,7 @@ App giải quyết 3 việc chính, tương ứng 3 khối màn hình:
 
 - Tài liệu này **chỉ là thiết kế bố cục** (planning). Không ảnh hưởng đến G1–G4 ngoài yêu cầu module hoá ranh giới engine (SRS mục 3 note).
 - Công nghệ GUI, cấu trúc `dhopm-app`, màn hình chi tiết → **lập plan riêng tại G4**.
-- ⚠️ **Giao diện đồ hoạ chỉ bắt đầu sau G2** (xem `docs/DECISIONS.md` D37, roadmap `00-OVERALL-PLAN.md`): cần có bảng số đo ε thật trước khi thiết kế biểu đồ độ lệch.
+- ⚠️ **Giao diện đồ hoạ chỉ bắt đầu sau G2** (xem `docs/DECISIONS.md` D37, roadmap `00-OVERALL-PLAN.md`): cần có bảng số đo minOcc thật trước khi thiết kế biểu đồ độ lệch.
 
 ---
 

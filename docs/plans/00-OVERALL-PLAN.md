@@ -1,8 +1,8 @@
-# DHOPM/DOPM – Kế hoạch Tổng thể (4 phiên bản, có cửa sổ suy giảm ε)
+# DHOPM/DOPM – Kế hoạch Tổng thể (4 phiên bản, có cửa sổ suy giảm minOcc)
 
-> Tài liệu gốc (source of truth) cho toàn bộ nỗ lực: **định nghĩa chuẩn hoá thuật toán** (kể cả cơ chế cửa sổ suy giảm theo ε), khung threading dùng chung, cấu trúc dự án, bộ test nghiệm thu và lộ trình triển khai.
+> Tài liệu gốc (source of truth) cho toàn bộ nỗ lực: **định nghĩa chuẩn hoá thuật toán** (kể cả cơ chế cửa sổ suy giảm theo minOcc), khung threading dùng chung, cấu trúc dự án, bộ test nghiệm thu và lộ trình triển khai.
 >
-> **Phiên bản 2.0 thay đổi nền móng dự án**: bổ sung **hệ số ε (ngưỡng dưới của DO)** và **cửa sổ suy giảm (damped window)** — từ đó `minSup` không còn phụ thuộc kích thước cả dataset, và DHO-List chỉ giữ phần dữ liệu *còn giá trị*. Số phiên bản tăng từ 3 → **4**.
+> **Phiên bản 2.0 thay đổi nền móng dự án**: bổ sung **hệ số minOcc (ngưỡng dưới của DO)** và **cửa sổ suy giảm (damped window)** — từ đó `minSup` không còn phụ thuộc kích thước cả dataset, và DHO-List chỉ giữ phần dữ liệu *còn giá trị*. Số phiên bản tăng từ 3 → **4**.
 
 ---
 
@@ -10,11 +10,11 @@
 
 | Mục | Giá trị |
 |---|---|
-| **Document Name** | Kế hoạch tổng thể DHOPM – 4 phiên bản, cửa sổ suy giảm ε |
+| **Document Name** | Kế hoạch tổng thể DHOPM – 4 phiên bản, cửa sổ suy giảm minOcc |
 | **Document ID** | DHOPM-PLAN-000 |
 | **Version** | **2.0 (Draft)** |
 | **Status** | Draft – chờ review |
-| **Nguồn ý tưởng ε** | `docs/Draft Idea.txt` (tác giả) → đã chuẩn hoá thành mục 2 & bất biến INV-G..INV-J |
+| **Nguồn ý tưởng minOcc** | `docs/Draft Idea.txt` (tác giả) → đã chuẩn hoá thành mục 2 & bất biến INV-G..INV-J |
 | **Source Documents** | [1] Paper gốc: `docs/root/1-s2_0-S095219762600792X-main.md`<br/>[2] Ví dụ chạy tay + TC1–TC8: `docs/root/Nhom01_VDChayTay.md`<br/>[3] Tài liệu draft cũ đã lưu trên branch `archive/legacy-draft` — tham khảo, KHÔNG phải mốc |
 | **Ngôn ngữ triển khai** | Java 25 (LTS) |
 | **Môi trường** | Windows (win32) |
@@ -28,7 +28,7 @@
 | 1.2 | Java 25; lưu trữ tài liệu draft cũ; V1 áp dụng GoF, V2 cân nhắc cấu trúc vượt GoF, V3 không cần pattern; mỗi giai đoạn sản xuất tài liệu design từng thành phần/hàm; util chung; log/benchmark độc lập thuật toán |
 | 1.3 | Giao tiếp gỡ lỗi (mục 4.2 + D6): công cụ chỉ nói chuyện qua API ổn định ở `dhopm-common`; CLI chuẩn hoá bộ lệnh `mine/detail/stream/golden/inspect` |
 | 1.4 | Giao tiếp Frontend ↔ Backend (mục 4.3 + D7/D8): frontend qua 1 Manager CLI/API duy nhất; thay `TsonV1Bridge` bằng client theo đặc tả JSONL; quản lý tài nguyên tách plan riêng |
-| **2.0** | **Thay đổi nền móng (xem mục 0).** (a) Thêm **ε = sai số hệ thống / ngưỡng dưới của DO** ⇒ kích thước cửa sổ `W(f,ε)`; (b) `minSup = ∂ × N_eff` với `N_eff = min(TL, W)` — **2 giai đoạn**, hết tăng khi cửa sổ đầy; (c) DHO-List chỉ giữ transaction **trong cửa sổ**; (d) Cơ chế **handle 2 tầng `ref1 → ref2`** để evict O(1) mà không phải rà từng node; (e) Bound mới `UB'(X) = min(DUBO(X), Z(X))` + **short-circuit trần DO** `Z(f,TL)`; (f) **ε = 0 ⇒ V2 ≡ V1 ≡ paper**; (g) 3 → **4 phiên bản** (V1 paper/GoF · V2 ε · V3 tối ưu ε · V4 cực đoan ε); (h) Đổi tên `epsilon` cũ → `ε_cmp` để tránh trùng với ε mới; (i) Bổ sung bộ test TC9–TC18 (cửa sổ/ε) + bảng test tham số; (j) Tách `docs/DECISIONS.md` làm nơi chốt quyết định |
+| **2.0** | **Thay đổi nền móng (xem mục 0).** (a) Thêm **minOcc = ngưỡng occupancy / ngưỡng dưới của DO** ⇒ kích thước cửa sổ `W(f,minOcc)`; (b) `minSup = ∂ × N_eff` với `N_eff = min(TL, W)` — **2 giai đoạn**, hết tăng khi cửa sổ đầy; (c) DHO-List chỉ giữ transaction **trong cửa sổ**; (d) Cơ chế **handle 2 tầng `ref1 → ref2`** để evict O(1) mà không phải rà từng node; (e) Bound mới `UB'(X) = min(DUBO(X), Z(X))` + **short-circuit trần DO** `Z(f,TL)`; (f) **minOcc = 0 ⇒ V2 ≡ V1 ≡ paper**; (g) 3 → **4 phiên bản** (V1 paper/GoF · V2 minOcc · V3 tối ưu minOcc · V4 cực đoan minOcc); (h) Đặt tên tách bạch: `minOcc` = cửa sổ, `epsilon` (ε) = sai số so sánh; (i) Bổ sung bộ test TC9–TC18 (cửa sổ/minOcc) + bảng test tham số; (j) Tách `docs/DECISIONS.md` làm nơi chốt quyết định |
 
 ---
 
@@ -38,11 +38,11 @@
 
 > *"Thuật toán có ngưỡng trên nhưng **không có ngưỡng dưới** dẫn đến hệ quả là phải đọc toàn bộ dataset mà nhiều giá trị DO của các transaction không có đóng góp, vì hệ số suy giảm f quá nhỏ làm DO nhỏ theo."*
 
-Vấn đề này **thay đổi nền móng**, vì nó biến bài toán từ *"lưu và duyệt toàn bộ lịch sử stream"* thành *"duy trì một **cửa sổ trượt** có kích thước hữu hạn, đủ để tính DO chính xác trong sai số ε"*.
+Vấn đề này **thay đổi nền móng**, vì nó biến bài toán từ *"lưu và duyệt toàn bộ lịch sử stream"* thành *"duy trì một **cửa sổ trượt** có kích thước hữu hạn, đủ để tính DO chính xác trong sai số minOcc"*.
 
 ### 0.2 Hệ quả trực tiếp
 
-| Hệ quả | Trước (bám sát paper) | Sau (có ε) |
+| Hệ quả | Trước (bám sát paper) | Sau (có minOcc) |
 |---|---|---|
 | Kích thước dữ liệu phải giữ | O(N × avgLen) — **toàn bộ lịch sử** | O(W × avgLen) — **chỉ cửa sổ** |
 | `minSup` | `∂ × TL` → tăng vô hạn theo độ dài stream | `∂ × min(TL, W)` → **đóng băng** khi cửa sổ đầy |
@@ -53,9 +53,9 @@ Vấn đề này **thay đổi nền móng**, vì nó biến bài toán từ *"l
 
 ### 0.3 Điểm cần đặc biệt lưu ý (rủi ro thiết kế)
 
-> **Vì `N_eff` phụ thuộc `ε`, nên `ε` thay đổi *tập DOP*, không chỉ thay đổi chi phí.**
-> Vì vậy `ε` là **tham số ngữ nghĩa** (cùng họ với `∂` và `f`), phải khai báo cùng `∂`, `f` trong **mọi** test, golden và benchmark. Mọi so sánh kết quả giữa các phiên bản phải dùng **cùng bộ `(∂, f, ε)`**.
-> Trạng thái "bám sát paper" được bảo toàn bằng quy tắc: **`ε = 0 ⇒ W = ∞ ⇒ V2 ≡ V1 ≡ paper`** (xem INV-I).
+> **Vì `N_eff` phụ thuộc `minOcc`, nên `minOcc` thay đổi *tập DOP*, không chỉ thay đổi chi phí.**
+> Vì vậy `minOcc` là **tham số ngữ nghĩa** (cùng họ với `∂` và `f`), phải khai báo cùng `∂`, `f` trong **mọi** test, golden và benchmark. Mọi so sánh kết quả giữa các phiên bản phải dùng **cùng bộ `(∂, f, minOcc)`**.
+> Trạng thái "bám sát paper" được bảo toàn bằng quy tắc: **`minOcc = 0 ⇒ W = ∞ ⇒ V2 ≡ V1 ≡ paper`** (xem INV-I).
 
 ### 0.4 Quy ước tên ký hiệu
 
@@ -63,8 +63,8 @@ Vấn đề này **thay đổi nền móng**, vì nó biến bài toán từ *"l
 |---|---|---|
 | `∂` | tỉ lệ ngưỡng | `partial` trong code/CLI |
 | `f` | hệ số suy giảm | `decayFactor` |
-| `ε` | **sai số hệ thống / ngưỡng dưới của DO (MỚI)** | `epsilon` trong code/CLI |
-| `ε_cmp` | sai số so sánh ngưỡng (C4) | `epsilonCmp` — **đổi tên từ `epsilon` cũ (1e-9)** |
+| `minOcc` | **ngưỡng occupancy / ngưỡng dưới của DO (MỚI)** | `minOcc` trong code/CLI |
+| `ε` | sai số so sánh ngưỡng (C4) | `epsilon` (1e-9) |
 | `W` | **kích thước cửa sổ** | *Trong `Draft Idea.txt` gọi là `Z`. Tài liệu này dùng `W` để tránh trùng với `Z(f,TL)` bên dưới.* |
 | `N_eff` | DB hiệu dụng = số transaction trong cửa sổ | *(`Draft Idea.txt` gọi là `winSup`)* |
 | `Z(f,TL)` | **khối lượng suy giảm** = tổng trọng số decay của cả stream | `Σ_{k=0..TL-1} f^k` — cũng là **trần của mọi DO** |
@@ -79,8 +79,8 @@ Xây **một hệ thống gồm 4 project engine** (4 phiên bản của cùng h
 
 | # | Bí danh | Module | Định vị | Câu hỏi phiên bản này trả lời | Mục tiêu cốt lõi |
 |---|---|---|---|---|---|
-| **V1** | **Standard** | `dhopm-v1-standard` | **Oracle** — bám sát paper, GoF | *"Thuật toán paper chạy đúng không?"* | Đúng theo canonical (ε≡0); qua TC1–TC8; threading Level 1; **đóng băng** làm mốc |
-| **V2** | **Epsilon / Window** | `dhopm-v2-epsilon` | **Semantics mới** | *"Cửa sổ suy giảm cho ta được gì, mất gì?"* | Thêm ε + cửa sổ + handle + minSup 2 pha; **ε=0 phải ≡ V1**; đo độ lỗi ≤ ε và mức tiết kiệm |
+| **V1** | **Standard** | `dhopm-v1-standard` | **Oracle** — bám sát paper, GoF | *"Thuật toán paper chạy đúng không?"* | Đúng theo canonical (minOcc≡0); qua TC1–TC8; threading Level 1; **đóng băng** làm mốc |
+| **V2** | **MinOcc / Window** | `dhopm-v2-minocc` | **Semantics mới** | *"Cửa sổ suy giảm cho ta được gì, mất gì?"* | Thêm minOcc + cửa sổ + handle + minSup 2 pha; **minOcc=0 phải ≡ V1**; đo độ lỗi ≤ minOcc và mức tiết kiệm |
 | **V3** | **Optimized** | `dhopm-v3-optimized` | **Kỹ thuật** | *"Với cùng ngữ nghĩa, cấu trúc dữ liệu nào nhanh hơn?"* | Level 2 threading; SoA/primitive; bỏ xích handle; decay lookup; benchmark đầy đủ vs V1/V2 |
 | **V4** | **Extreme** | `dhopm-v4-extreme` | **Trần hiệu năng** | *"Có thể nhanh hơn bao nhiêu nữa?"* | Data-oriented thuần; pipeline 3 pha; memory-mapped I/O; **chỉ giữi thứ đo được lợi** |
 
@@ -88,14 +88,14 @@ Xây **một hệ thống gồm 4 project engine** (4 phiên bản của cùng h
 
 ### 1.2 Phạm vi
 
-- **Bao trùm:** chuẩn hóa thuật toán **có cửa sổ ε**, mô hình threading, cấu trúc dự án (4 engine + harness + CLI Manager + app), định dạng đầu vào, bộ test, benchmark, lộ trình, rủi ro, cấu trúc tài liệu.
+- **Bao trùm:** chuẩn hóa thuật toán **có cửa sổ minOcc**, mô hình threading, cấu trúc dự án (4 engine + harness + CLI Manager + app), định dạng đầu vào, bộ test, benchmark, lộ trình, rủi ro, cấu trúc tài liệu.
 - **Không bao gồm:** thiết kế class chi tiết (ở plan 01–04), chi tiết SRS (ở `docs/srs/`), thiết kế chi tiết G4/G6 (lập plan khi tới giai đoạn).
 
 ### 1.3 Quan hệ với tài liệu cũ
 
 - **2 tài liệu trong `docs/root/` là mốc đúng đắn duy nhất cho thuật toán gốc** (công thức, thứ tự xử lý, TC1–TC8).
 - Toàn bộ tài liệu draft cũ đã ở branch `archive/legacy-draft`, **KHÔNG là mốc**.
-- `docs/Draft Idea.txt` là **nguồn ý tưởng ε** — được chuẩn hoá vào mục 2 của tài liệu này; các quyết định suy ra được ghi vào `docs/DECISIONS.md`.
+- `docs/Draft Idea.txt` là **nguồn ý tưởng minOcc** — được chuẩn hoá vào mục 2 của tài liệu này; các quyết định suy ra được ghi vào `docs/DECISIONS.md`.
 
 ---
 
@@ -109,28 +109,28 @@ Xây **một hệ thống gồm 4 project engine** (4 phiên bản của cùng h
 |---|---|---|---|---|
 | `∂` (`partial`) | Tỉ lệ ngưỡng **trên DB hiệu dụng** | `∂ ∈ [0,1]` | `0.15` | Đơn vị của nó bây giờ là **số transaction trong cửa sổ**, không phải cả dataset |
 | `f` (`decayFactor`) | Hệ số suy giảm | `f ∈ (0,1]` | `0.9` | `f = 1` → không suy giảm ⇒ **cửa sổ là ∞** ⇒ thuật toán thành HOP truyền thống |
-| `ε` (`epsilon`) | **Sai số hệ thống / ngưỡng dưới của DO** | `ε ∈ [0, 1)` | V1: `0`<br/>V2+: `1e-6` | Xác định kích thước cửa sổ `W`. **`ε = 0` ⇒ không cửa sổ ⇒ ≡ paper**. Xem ghi chú bên dưới về *mặc định* |
-| `ε_cmp` (`epsilonCmp`) | Sai số so sánh ngưỡng (quyết định cũ C4) | `> 0` | `1e-9` | **Đổi tên từ `epsilon` cũ** để không trùng với ε mới |
-| `W` | Kích thước cửa sổ | **derived** | auto | `W = W(f, ε)` — mục 2.3. Cho phép override (`windowOverride`) chỉ để nghiên cứu (xem cảnh báo bên dưới) |
+| `minOcc` (`minOcc`) | **Ngưỡng occupancy / ngưỡng dưới của DO** | `minOcc ∈ [0, 1)` | V1: `0`<br/>V2+: `1e-6` | Xác định kích thước cửa sổ `W`. **`minOcc = 0` ⇒ không cửa sổ ⇒ ≡ paper**. Xem ghi chú bên dưới về *mặc định* |
+| `ε` (`epsilon`) | Sai số so sánh ngưỡng (quyết định cũ C4) | `> 0` | `1e-9` | Sai số **kỹ thuật** thuần, tách khỏi tham số ngữ nghĩa `minOcc` |
+| `W` | Kích thước cửa sổ | **derived** | auto | `W = W(f, minOcc)` — mục 2.3. Cho phép override (`windowOverride`) chỉ để nghiên cứu (xem cảnh báo bên dưới) |
 | `N_eff` | DB hiệu dụng | **derived** | `min(TL, W)` | mục 2.4 |
 
 **Quy tắc biên (canonical):**
 - Transaction rỗng / độ dài 0 → **loại từ khi nhập**, không tính vào tổng số transaction.
 - Item trùng trong 1 transaction → chuẩn hoá về tập phân biệt.
 - `TID` không tăng dần → **báo lỗi ngay (fail-fast, INV-A)**.
-- `∂ ∉ [0,1]`, `f ∉ (0,1]`, `ε < 0`, `ε ≥ 1`, `ε_cmp ≤ 0` → **báo lỗi khi cấu hình**.
-- **`ε ≥ 1/(1−f)` (với `f<1`) ⇒ `W = 0` ⇒ cửa sổ rỗng ⇒ báo lỗi cấu hình** (xem 2.6 – V3).
+- `∂ ∉ [0,1]`, `f ∉ (0,1]`, `minOcc < 0`, `minOcc ≥ 1`, `ε ≤ 0` → **báo lỗi khi cấu hình**.
+- **`minOcc ≥ 1/(1−f)` (với `f<1`) ⇒ `W = 0` ⇒ cửa sổ rỗng ⇒ báo lỗi cấu hình** (xem 2.6 – V3).
 - **`∂ = 0` ⇒ `minSup = 0` ⇒ mọi pattern đều là DOP** → cho phép nhưng **cảnh báo** (output có thể bùng nổ).
 - `W` vượt `maxWindow` (mặc định `10^7`) → **báo lỗi cấu hình** (tránh cấp phát không thể thiện thực).
 
-> ⚠️ **Chính sách "mặc định" của `ε` — phải hiểu đúng (C12 + D28).** Có **hai tầng khác nhau**, không mâu thuẫn:
+> ⚠️ **Chính sách "mặc định" của `minOcc` — phải hiểu đúng (C12 + D28).** Có **hai tầng khác nhau**, không mâu thuẫn:
 >
 > | Tầng | Ai đặt | Quy tắc |
 > |---|---|---|
 > | **Thư viện / lập trình viên** | `MiningConfig` | Có giá trị mặc định: V1 = `0`, V2+ = `1e-6`. Gọi API mà không truyền ⇒ dùng mặc định **của phiên bản đó**. |
-> | **Giao thức Manager / app** | Người dùng, qua CLI `--epsilon` hoặc JSON request | **Bắt buộc khai báo tường minh.** Thiếu ⇒ **lỗi yêu cầu**, không tự đoán (D28). |
+> | **Giao thức Manager / app** | Người dùng, qua CLI `--minOcc` hoặc JSON request | **Bắt buộc khai báo tường minh.** Thiếu ⇒ **lỗi yêu cầu**, không tự đoán (D28). |
 >
-> Lý do tách hai tầng: mặc định của *thư viện* giữ tiện cho người viết test; còn *giao thức* không được im lặng vì `ε` thay đổi **tập DOP** (C12) ⇒ hai phiên chạy lưu kết quả khác nhau mà người dùng không biết. Ở mọi lần in kết quả/benchmark, **`ε` phải được in ra bắt buộc** kèm theo.
+> Lý do tách hai tầng: mặc định của *thư viện* giữ tiện cho người viết test; còn *giao thức* không được im lặng vì `minOcc` thay đổi **tập DOP** (C12) ⇒ hai phiên chạy lưu kết quả khác nhau mà người dùng không biết. Ở mọi lần in kết quả/benchmark, **`minOcc` phải được in ra bắt buộc** kèm theo.
 
 ### 2.2 Pipeline chuẩn (4 giai đoạn — GĐ0 là mới)
 
@@ -158,9 +158,9 @@ GĐ3 – Mine (DFS pattern-growth):
    Mine(currentList, prefix):
      với i = 0..n-1 (node_i theo thứ tự hiện tại):
        nếu support_sống(node_i) < minSup → SKIP node (bỏ hẳn, C2)
-       nếu DO(node_i) ≥ minSup − ε_cmp → thêm (prefix ∪ {item_i}) vào kết quả
+       nếu DO(node_i) ≥ minSup − ε → thêm (prefix ∪ {item_i}) vào kết quả
        ubo = UB'(node_i) = min( DUBO(node_i), Z(node_i) )        // mục 2.5
-       nếu ubo < minSup − ε_cmp → SKIP mở rộng (prune)
+       nếu ubo < minSup − ε → SKIP mở rộng (prune)
        ngược lại:
          ncl = ConditionalList mới
          với j = i+1..n-1:
@@ -183,32 +183,32 @@ GĐ3 – Mine (DFS pattern-growth):
 | DUBO | `DUBO(X,k) = f^(TL − T_k) × Σ_{i≥k} n_i × (l_k / l_i)`; `DUBO(X) = max_k DUBO(X,k)` — nhóm `k` theo độ dài `|T|` tăng dần, `(n_k, T_k)`, **chỉ tính trên entry sống** |
 | **Khối lượng suy giảm (toàn stream)** | `Z(f,TL) = Σ_{k=0..TL−1} f^k = (1 − f^TL)/(1 − f)`; `f=1 ⇒ Z = TL` |
 | **Khối lượng suy giảm (một node)** | `Z(X) = Σ_{t ∈ T_sống(X)} f^(TL − t)` |
-| **Kích thước cửa sổ** | `W(f,ε) = min{ W ≥ 0 : Σ_{k=W..TL−1} f^k ≤ ε }` |
+| **Kích thước cửa sổ** | `W(f,minOcc) = min{ W ≥ 0 : Σ_{k=W..TL−1} f^k ≤ minOcc }` |
 | **DB hiệu dụng** | `N_eff(TL) = min(TL, W)` |
 | **minSup (2 giai đoạn)** | `minSup(TL) = ∂ × N_eff(TL)` |
 
 #### 2.3.1 Công thức kích thước cửa sổ (đóng)
 
-Với `0 < f < 1` và `0 < ε < 1/(1−f)`:
+Với `0 < f < 1` và `0 < minOcc < 1/(1−f)`:
 
 ```
-Σ_{k=W}^{TL−1} f^k ≤ Σ_{k=W}^{∞} f^k = f^W / (1 − f) ≤ ε
-   ⟺  f^W ≤ ε(1 − f)
-   ⟺  W ≥ ln( ε(1−f) ) / ln f
-   ⟹  W(f, ε) = ⌈ ln( ε(1−f) ) / ln f ⌉
+Σ_{k=W}^{TL−1} f^k ≤ Σ_{k=W}^{∞} f^k = f^W / (1 − f) ≤ minOcc
+   ⟺  f^W ≤ minOcc(1 − f)
+   ⟺  W ≥ ln( minOcc(1−f) ) / ln f
+   ⟹  W(f, minOcc) = ⌈ ln( minOcc(1−f) ) / ln f ⌉
 ```
 
 | Trường hợp | `W` | Nghĩa |
 |---|---|---|
-| `ε = 0` | **∞** | Không chấp nhận sai số ⇒ **≡ paper** (không cửa sổ) |
+| `minOcc = 0` | **∞** | Không chấp nhận sai số ⇒ **≡ paper** (không cửa sổ) |
 | `f = 1` | **∞** | Không suy giảm ⇒ mọi transaction đều có giá trị ⇒ **≡ HOP** (TC5) |
-| `0 < ε < 1/(1−f)` | `⌈ln(ε(1−f))/ln f⌉` | Công thức chính |
-| `ε ≥ 1/(1−f)` | **0** | Cửa sổ rỗng ⇒ **lỗi cấu hình** |
+| `0 < minOcc < 1/(1−f)` | `⌈ln(minOcc(1−f))/ln f⌉` | Công thức chính |
+| `minOcc ≥ 1/(1−f)` | **0** | Cửa sổ rỗng ⇒ **lỗi cấu hình** |
 | `f` → 0 | nhỏ (≈ 3–7) | Suy giảm cực mạnh ⇒ cửa sổ rất ngắn |
 
 **Bảng tra cứu nhanh `W` (đã tính sẵn, dùng cho test):**
 
-| f \ ε | 1e-3 | 1e-6 | 1e-9 | 1e-12 |
+| f \ minOcc | 1e-3 | 1e-6 | 1e-9 | 1e-12 |
 |---|---|---|---|---|
 | 0.5 | 11 | 21 | 31 | 41 |
 | 0.8 | 39 | 70 | 101 | 132 |
@@ -217,7 +217,7 @@ Với `0 < f < 1` và `0 < ε < 1/(1−f)`:
 | 0.99 | 1 146 | 1 833 | 2 521 | 3 208 |
 | 0.999 | 13 809 | 20 713 | 27 618 | 34 522 |
 
-**Xấp xỉ cần nhớ:** `W ≈ ln(1/ε) / ln(1/f)` (bỏ yếu tố `(1−f)`) — dùng để ước lượng nhanh, **không dùng để tính**.
+**Xấp xỉ cần nhớ:** `W ≈ ln(1/minOcc) / ln(1/f)` (bỏ yếu tố `(1−f)`) — dùng để ước lượng nhanh, **không dùng để tính**.
 
 ### 2.4 minSup hai giai đoạn (quyết định cốt lõi của `docs/Draft Idea.txt`)
 
@@ -247,7 +247,7 @@ DO(X) ≤ Σ_{t ∈ T(X)} f^(TL−t) ≤ Z(f, TL)
 - Báo cho người dùng: *"`∂ = … , f = … ⇒ minSup = … > Z = … ; không thể có DOP. Giảm ∂ hoặc tăng f."*
 - Miền `∂` khả thi **chính xác** (hữu hạn, dùng cho validator): **`∂ ≤ Z(f,TL) / N_eff`** — suy ra trực tiếp từ `minSup = ∂ × N_eff ≤ Z(f,TL)`.
   - Với `TL ≫ W` thì `Z(f,TL) → 1/(1−f)` ⇒ **xấp xỉ dùng để ước lượng**: `∂ ≲ 1 / ((1−f) · W)` (bảng ở mục 6.4).
-  - ⚠️ **Phân biệt bắt buộc (D38)**: `1/((1−f)·W)` là **giá trị ở giới hạn `TL → ∞`**, tức tại **ranh giới pha 2**; nó **luôn ≤ giá trị chính xác** (⇒ dùng nhầm để chặn tham số sẽ **chặn oan**). Ví dụ `f=0.9, ε=1e-6, TL=4`: xấp xỉ 6.54 %, chính xác `Z(0.9,4)/4 = 3.439/4 = 85.98 %` — lệch **×13**. ⇒ Validator **luôn dùng công thức chính xác `Z(f,TL)/N_eff`**; bảng miền khả thi ở mục 6.4 dùng xấp xỉ và **đã ghi nhãn**.
+  - ⚠️ **Phân biệt bắt buộc (D38)**: `1/((1−f)·W)` là **giá trị ở giới hạn `TL → ∞`**, tức tại **ranh giới pha 2**; nó **luôn ≤ giá trị chính xác** (⇒ dùng nhầm để chặn tham số sẽ **chặn oan**). Ví dụ `f=0.9, minOcc=1e-6, TL=4`: xấp xỉ 6.54 %, chính xác `Z(0.9,4)/4 = 3.439/4 = 85.98 %` — lệch **×13**. ⇒ Validator **luôn dùng công thức chính xác `Z(f,TL)/N_eff`**; bảng miền khả thi ở mục 6.4 dùng xấp xỉ và **đã ghi nhãn**.
 
 **(b) Bound theo node (chặt hơn DUBO).** Với mọi superset `Y ⊇ X`: `T(Y) ⊆ T(X)` và `|Y| ≤ |Td|`, nên
 
@@ -312,15 +312,15 @@ Entry của Node (ref1)  ──►  Handle (ref2)  ──►  Transaction { tid,
 | C1 | Hệ số suy giảm trong DUBO | **Một** decay factor `f^(TL − T_k)` của nhóm k cho **toàn bộ tổng** | Paper mục 3.6 + chạy tay; `DUBO(CD)=1.6402`, `DUBO(CDE)=1.181` ở TL=8, f=0.9 |
 | C2 | `support < minSup` trong Mine | **Bỏ hẳn node** (không đánh giá DOP, không mở rộng) | Pseudocode + chạy tay (G bị bỏ). **Với cửa sổ: dùng support SỐNG — vẫn đúng, vì `DO(X) ≤ Z(X) ≤ support_sống(X)`** |
 | C3 | Tie-break khi support bằng nhau | Sắp xếp **ổn định** theo support tăng dần, giữ thứ tự **tạo node** | Chạy tay phần 6.2, 8.2 |
-| C4 | Độ chính xác số thực | `double`; so sánh ngưỡng dùng `≥ minSup − ε_cmp`, `ε_cmp = 1e-9`; chỉ làm tròn 4 chữ số khi hiển thị/test | Bảng TC |
+| C4 | Độ chính xác số thực | `double`; so sánh ngưỡng dùng `≥ minSup − ε`, `ε = 1e-9`; chỉ làm tròn 4 chữ số khi hiển thị/test | Bảng TC |
 | C5 | Thứ tự cộng dồn DO/DUBO | Một node luôn cộng **tuần tự trên một thread**; DO theo entry TID tăng dần; DUBO theo nhóm độ dài tăng dần. **Không chia phép cộng của một node cho nhiều thread** | Đảm bảo bit-for-bit giữa các phiên bản |
 | C6 | Bản sắc pattern | Pattern = **tập item**; hiển thị/so sánh theo thứ tự item xác định | Chạy tay (AEG/GAE) |
-| **C7** | **Ý nghĩa của ε** | ε là **ngưỡng dưới của DO**: mọi transaction có đóng góp tổng `< ε` bị coi là **không có giá trị** và không được lưu | `Draft Idea.txt` |
-| **C8** | **Công thức cửa sổ** | `W = ⌈ln(ε(1−f))/ln f⌉`; `ε=0` hoặc `f=1` ⇒ `W = ∞`; `ε ≥ 1/(1−f)` ⇒ lỗi cấu hình | Mục 2.3.1 |
+| **C7** | **Ý nghĩa của minOcc** | minOcc là **ngưỡng dưới của DO**: mọi transaction có đóng góp tổng `< minOcc` bị coi là **không có giá trị** và không được lưu | `Draft Idea.txt` |
+| **C8** | **Công thức cửa sổ** | `W = ⌈ln(minOcc(1−f))/ln f⌉`; `minOcc=0` hoặc `f=1` ⇒ `W = ∞`; `minOcc ≥ 1/(1−f)` ⇒ lỗi cấu hình | Mục 2.3.1 |
 | **C9** | **Đơn vị của minSup** | `minSup = ∂ × N_eff`, `N_eff = min(TL, W)` — **2 giai đoạn** (mục 2.4). Không dùng `∂ × TL` khi đã cắt cửa sổ | `Draft Idea.txt` |
 | **C10** | **Evict** | Chỉ evict transaction **đã từng được ghi entry**; transaction ngoài cửa sổ ngay từ đầu thì **không ghi**; evict **đơn luồng, trước mọi pha song song** | Mục 2.2 (GĐ0) |
 | **C11** | **Cơ chế đồng bộ node** | Handle 2 tầng `ref1 → ref2`; **entry lưu kèm `tid` và bắt buộc kiểm `tid` khớp** khi đọc (chống tái sử dụng slot, mục 2.7); entry chết là **tiền tố** ⇒ compaction bằng `head`; support = `size − head` | Mục 2.7 |
-| **C12** | **Danh tính kết quả** | Tập DOP được xác định bởi bộ tham số **`(∂, f, ε, TL)`**. So sánh kết quả giữa các phiên bản/phiên chạy **bắt buộc dùng cùng bộ tham số này**. Nếu dùng `windowOverride` (chỉ để nghiên cứu) thì **`W` thực tế cũng thuộc danh tính** | Suy ra từ C9 + 2.3 |
+| **C12** | **Danh tính kết quả** | Tập DOP được xác định bởi bộ tham số **`(∂, f, minOcc, TL)`**. So sánh kết quả giữa các phiên bản/phiên chạy **bắt buộc dùng cùng bộ tham số này**. Nếu dùng `windowOverride` (chỉ để nghiên cứu) thì **`W` thực tế cũng thuộc danh tính** | Suy ra từ C9 + 2.3 |
 
 ### 2.9 Bất biến toàn cục
 
@@ -328,13 +328,13 @@ Entry của Node (ref1)  ──►  Handle (ref2)  ──►  Transaction { tid,
 |---|---|
 | **INV-A** | TID tăng dần nghiêm ngặt trên toàn stream |
 | **INV-B** | Entry của một node luôn được thêm theo TID tăng dần (append-only) |
-| **INV-C** | DO chỉ có nghĩa tại đúng `(TL, f, ε)` đang dùng; đổi dữ liệu/tham số ⇒ phải reconstruct lại |
+| **INV-C** | DO chỉ có nghĩa tại đúng `(TL, f, minOcc)` đang dùng; đổi dữ liệu/tham số ⇒ phải reconstruct lại |
 | **INV-D** | Conditional list **không được sắp xếp lại** sau khi dựng (giữ thứ tự kết hợp từ list cha) |
 | **INV-E** | Kết quả 4 phiên bản phải cho cùng tập DOP khi cùng tham số (đối chiếu C4–C6, C12) |
 | **INV-F** | `minSup` được tính tại **thời điểm `mineNow`**, không phải lúc `loadBatch` |
-| **INV-G** | **Sai số cửa sổ:** với mọi pattern X, `DO_win(X) ≥ DO_full(X) − ε` và `|DO_win(X) − DO_full(X)| ≤ ε` (với ε > 0). Khi `ε = 0` thì bất biến này thành **đẳng thức** |
+| **INV-G** | **Sai số cửa sổ:** với mọi pattern X, `DO_win(X) ≥ DO_full(X) − minOcc` và `|DO_win(X) − DO_full(X)| ≤ minOcc` (với minOcc > 0). Khi `minOcc = 0` thì bất biến này thành **đẳng thức** |
 | **INV-H** | **Không bao giờ dereference tham chiếu đã vô hiệu hóa.** Mọi kiểm tra sống/chết phải đi qua Handle (`ref1 → ref2` → đọc `ref2.tx`) **và kiểm `ref2.tid == entry.tid`** — cần mệnh đề thứ hai vì slot vòng tròn bị tái sử dụng (mục 2.7). |
-| **INV-I** | **Tương đương paper:** với `ε = 0` (hoặc `W ≥ TL`), **mọi phiên bản V2/V3/V4 phải cho kết quả bit-for-bit giống V1**. Đây là test hồi quy bắt buộc của G2/G3/G4 |
+| **INV-I** | **Tương đương paper:** với `minOcc = 0` (hoặc `W ≥ TL`), **mọi phiên bản V2/V3/V4 phải cho kết quả bit-for-bit giống V1**. Đây là test hồi quy bắt buộc của G2/G3/G4 |
 | **INV-J** | **Monotonicity của support trong cửa sổ:** `support_sống(X)` không giảm khi stream nối tiếp **nếu không có transaction nào rời cửa sổ**; khi có, support có thể giảm — đây là hành vi **đúng** và C2 vẫn hợp lệ (vì `DO ≤ Z(X) ≤ support_sống`) |
 
 ---
@@ -365,16 +365,16 @@ implementation/
 ├── pom.xml                     # parent (Java 25)
 ├── dhopm-common/               # DÙNG CHUNG, KHÔNG chứa logic thuật toán version nào
 │   ├── src/main/java/…          #   io: TransactionSource, FIMI reader, text reader, (utility reader)
-│   │                            #   config: MiningConfig (∂, f, ε, ε_cmp, workers, windowOverride)
+│   │                            #   config: MiningConfig (∂, f, minOcc, ε, workers, windowOverride)
 │   │                            #   contract: Engine, PhaseAwareEngine, ProgressAwareEngine,
 │   │                            #            TimedEngine, WindowInfo, Pattern, MineResult
 │   │                            #   util: WorkerPool, Log, TimingRecorder
 │   │                            #   window: WindowMath (công thức W), ParameterValidator  ← MỚI
-│   └── src/test/java/…          #   TestKit: golden TC1–TC8 (ε=0) + TC9–TC18 (ε>0), WindowMathTest
-├── dhopm-v1-standard/          # V1 — Oracle, bám sát paper (ε≡0), GoF, Level 1
-├── dhopm-v2-epsilon/           # V2 — Cửa sổ ε + handle ref1/ref2 + minSup 2 pha   ← MỚI
-├── dhopm-v3-optimized/         # V3 — Tối ưu khi đã có ε
-├── dhopm-v4-extreme/           # V4 — Tối ưu cực đoan khi đã có ε (tạo khi bắt đầu G4)
+│   └── src/test/java/…          #   TestKit: golden TC1–TC8 (minOcc=0) + TC9–TC18 (minOcc>0), WindowMathTest
+├── dhopm-v1-standard/          # V1 — Oracle, bám sát paper (minOcc≡0), GoF, Level 1
+├── dhopm-v2-minocc/           # V2 — Cửa sổ minOcc + handle ref1/ref2 + minSup 2 pha   ← MỚI
+├── dhopm-v3-optimized/         # V3 — Tối ưu khi đã có minOcc
+├── dhopm-v4-extreme/           # V4 — Tối ưu cực đoan khi đã có minOcc (tạo khi bắt đầu G4)
 ├── dhopm-bench/                # Harness đo runtime/memory/throughput + **bảng ablation V1..V4**
 ├── dhopm-cli/                  # Manager CLI/API duy nhất (mục 4.3) — tạo ở G5
 └── dhopm-app/                  # Module UI riêng — tạo ở G6
@@ -394,7 +394,7 @@ implementation/
 | Plan từng phiên bản | V1 / V2 / V3 / V4 | `docs/plans/01…04-*` | ✅ |
 | Plan giao tiếp Frontend↔Backend | Manager CLI/API + đặc tả giao thức | `docs/plans/05-BACKEND-CLIAPI-PLAN.md` | 🕔 Draft |
 | Phân tích draft backend | Phân tích `Draft backend CLIAPI.txt` | `docs/plans/06-BACKEND-CLIAPI-DRAFT-ANALYSIS.md` | 🕔 Draft |
-| Ý tưởng gốc | Bản nháp tác giả về ε | `docs/Draft Idea.txt` | ✅ giữ nguyên làm mốc ý tưởng |
+| Ý tưởng gốc | Bản nháp tác giả về minOcc | `docs/Draft Idea.txt` | ✅ giữ nguyên làm mốc ý tưởng |
 | Yêu cầu tổng | **SRS tổng thể** (4 engine + harness + app) | `docs/srs/DHOPM-SRS.md` | ✅ |
 | Thiết kế trình bày | **UI Layout** | `docs/srs/DHOPM-UI-LAYOUT.md` | ✅ |
 | Tài liệu mốc | Paper + ví dụ chạy tay | `docs/root/` | ✅ |
@@ -423,9 +423,9 @@ implementation/
 
 | Lệnh | Mục đích |
 |---|---|
-| `window` | In bảng tra cứu `W(f,ε)`, `N_eff`, `minSup`, trần `Z(f,TL)`, miền `∂` khả thi — **không cần dataset** (trả lời câu hỏi "với ε,∂,f này thì ra cái gì?") |
-| `validate` | Kiểm tra cấu hình + báo cảnh báo (ε quá lớn, ∂ vô khả thi, W vượt `maxWindow`) **trước khi** chạy |
-| `sweep` | Quét nhiều tổ hợp `(ε, ∂, f)` → bảng kết quả (số DOP, runtime, memory, độ dài TB) |
+| `window` | In bảng tra cứu `W(f,minOcc)`, `N_eff`, `minSup`, trần `Z(f,TL)`, miền `∂` khả thi — **không cần dataset** (trả lời câu hỏi "với minOcc,∂,f này thì ra cái gì?") |
+| `validate` | Kiểm tra cấu hình + báo cảnh báo (minOcc quá lớn, ∂ vô khả thi, W vượt `maxWindow`) **trước khi** chạy |
+| `sweep` | Quét nhiều tổ hợp `(minOcc, ∂, f)` → bảng kết quả (số DOP, runtime, memory, độ dài TB) |
 
 ### 4.3 Giao tiếp Frontend ↔ Backend (Manager CLI/API)
 
@@ -508,7 +508,7 @@ implementation/
 
 ## 6. Bộ Test Chuẩn
 
-### 6.1 Nhóm A — TC1–TC8 (bám sát paper, **chạy với `ε = 0`**)
+### 6.1 Nhóm A — TC1–TC8 (bám sát paper, **chạy với `minOcc = 0`**)
 
 | TC | Dữ liệu | Tham số | Kỳ vọng |
 |---|---|---|---|
@@ -521,36 +521,36 @@ implementation/
 | TC7 | custom 10 TID | f=0.9, ∂=15 % → 1.5 | 9 DOP |
 | TC8 | 5 TID, mỗi giao dịch 1 item | f=0.9, ∂=30 % → 1.5, TL=5 | `{A=2.4661}` |
 
-> **Quy tắc:** TC1–TC8 **luôn chạy với `ε = 0`** ở **mọi** phiên bản. Đây là test hồi quy **INV-I**.
+> **Quy tắc:** TC1–TC8 **luôn chạy với `minOcc = 0`** ở **mọi** phiên bản. Đây là test hồi quy **INV-I**.
 
-### 6.2 Nhóm B — TC9–TC18 (ngữ nghĩa cửa sổ ε, **chỉ V2+**)
+### 6.2 Nhóm B — TC9–TC18 (ngữ nghĩa cửa sổ minOcc, **chỉ V2+**)
 
 | TC | Mục đích | Kỳ vọng |
 |---|---|---|
-| **TC9** | **Tương đương paper:** cùng dữ liệu/tham số TC1 nhưng `ε = 0` | kết quả **bit-for-bit** = TC1 |
-| **TC10** | **Cửa sổ rộng hơn stream:** chọn `ε` sao cho `W ≥ TL` | ≡ paper |
-| **TC11** | **Cửa sổ hẹp:** `W ≪ TL` | mọi `DO_win` lệch `DO_full` **≤ ε** (INV-G); số DOP ≤ kết quả full |
-| **TC12** | **`f = 1` + `ε > 0`** | `W = ∞` ⇒ ≡ TC5 |
+| **TC9** | **Tương đương paper:** cùng dữ liệu/tham số TC1 nhưng `minOcc = 0` | kết quả **bit-for-bit** = TC1 |
+| **TC10** | **Cửa sổ rộng hơn stream:** chọn `minOcc` sao cho `W ≥ TL` | ≡ paper |
+| **TC11** | **Cửa sổ hẹp:** `W ≪ TL` | mọi `DO_win` lệch `DO_full` **≤ minOcc** (INV-G); số DOP ≤ kết quả full |
+| **TC12** | **`f = 1` + `minOcc > 0`** | `W = ∞` ⇒ ≡ TC5 |
 | **TC13** | **Entry chết là tiền tố:** nạp nhiều batch để có evict, kiểm tra `head` dịch đúng, `support = size − head` | hợp lệ, không sót entry |
 | **TC14** | **minSup 2 pha:** `TL` đi qua mốc `W` | `minSup` tăng tới `∂×W` rồi **đóng băng** |
-| **TC15** | **Validator:** `ε ≥ 1/(1−f)` | ném lỗi cấu hình rõ ràng |
+| **TC15** | **Validator:** `minOcc ≥ 1/(1−f)` | ném lỗi cấu hình rõ ràng |
 | **TC16** | **Validator + short-circuit:** `∂ × N_eff > Z(f,TL)` | kết quả rỗng **tức thì** + cảnh báo có nội dung |
 | **TC17** | **Ví dụ "item A"** của `Draft Idea.txt`: A xuất hiện 1000 lần ngoài cửa sổ + 1 lần trong cửa sổ | `support_sống(A) = 1 < minSup` ⇒ A bị C2 loại ở GĐ2 |
-| **TC18** | **Đối chiếu window vs full-recompute** trên nhiều tổ hợp `(∂,f,ε)` | `∀X: DO_win(X) ≥ DO_full(X) − ε − ε_cmp` và mọi DOP_full vẫn là DOP_win hoặc lệch ≤ ε |
+| **TC18** | **Đối chiếu window vs full-recompute** trên nhiều tổ hợp `(∂,f,minOcc)` | `∀X: DO_win(X) ≥ DO_full(X) − minOcc − ε` và mọi DOP_full vẫn là DOP_win hoặc lệch ≤ minOcc |
 
 ### 6.3 Cấu trúc nghiệm thu chung
 
 1. `GoldenRunner`: chạy engine bất kỳ trên TC, so tập kết quả theo C4–C6, C12.
-2. **Hồi quy chéo phiên bản:** `V2(ε=0) ≡ V1`, `V3(ε=0) ≡ V1`, `V4(ε=0) ≡ V1`; và với `ε>0`: `V3(ε) ≡ V2(ε)`, `V4(ε) ≡ V3(ε)` (**double đầy đủ**).
+2. **Hồi quy chéo phiên bản:** `V2(minOcc=0) ≡ V1`, `V3(minOcc=0) ≡ V1`, `V4(minOcc=0) ≡ V1`; và với `minOcc>0`: `V3(minOcc) ≡ V2(minOcc)`, `V4(minOcc) ≡ V3(minOcc)` (**double đầy đủ**).
 3. `DeterminismAssert`: cùng tham số, pool `{1,2,4,cpu}` ⇒ bit-for-bit.
 
 ### 6.4 Bảng chọn tham số & test trường hợp biên (bắt buộc theo yêu cầu của tác giả)
 
-> Câu hỏi mẫu trong `Draft Idea.txt`: *"nếu ε = 10⁻³, ∂ = 1, f = 1 thì window_size = ?"* → trả lời bằng công thức C8, kiểm bằng `WindowMathTest`.
+> Câu hỏi mẫu trong `Draft Idea.txt`: *"nếu minOcc = 10⁻³, ∂ = 1, f = 1 thì window_size = ?"* → trả lời bằng công thức C8, kiểm bằng `WindowMathTest`.
 
 **Trường hợp biên (bắt buộc có test):**
 
-| # | f | ε | ∂ | W | N_eff (TL lớn) | minSup | Trần `Z(f,TL)` | Kết luận |
+| # | f | minOcc | ∂ | W | N_eff (TL lớn) | minSup | Trần `Z(f,TL)` | Kết luận |
 |---|---|---|---|---|---|---|---|---|
 | E1 | 0.9 | **0** | 0.15 | ∞ | TL | `0.15·TL` | 10 | **≡ paper** (chế độ mặc định của V1) |
 | E2 | **1.0** | 1e-3 | **1.0** | **∞** | TL | `1.0·TL` | `TL` | khả thi về lý thuyết; chỉ pattern có `DO = TL` mới đạt ⇒ **suy biến, cảnh báo** |
@@ -558,23 +558,23 @@ implementation/
 | E4 | 0.9 | 1e-6 | 1.0 | 153 | 153 | 153 | 10 | ⇒ ∅ chắc chắn (≤ 6.54 %) |
 | E5 | 0.9 | 1e-6 | 0.15 | 153 | 153 | **22.95** | 10 | ⇒ ∅ chắc chắn — **minh hoạ việc ∂=0.15 chỉ dùng được khi N_eff nhỏ (TC1)** |
 | E6 | 0.9 | 1e-6 | 0.005 | 153 | 153 | 0.765 | 10 | khả thi; ngưỡng có nghĩa |
-| E7 | 0.9 | **≥ 0.1** | 0.15 | **0** | 0 | — | 10 | **⇒ lỗi cấu hình** (ε ≥ 1/(1−f)) |
+| E7 | 0.9 | **≥ 0.1** | 0.15 | **0** | 0 | — | 10 | **⇒ lỗi cấu hình** (minOcc ≥ 1/(1−f)) |
 | E8 | 0.9 | 1e-6 | **0** | 153 | 153 | 0 | 10 | khả thi nhưng **mọi pattern đều là DOP** → cảnh báo bùng nổ output |
 | E9 | 0.9 | 1e-6 | 0.15 | 153 | **4** (TL=4 < W) | **0.6** | **3.44** | **pha 1**: `minSup = ∂×TL` ⇒ ≡ paper. Miền khả thi **chính xác** = `Z/4 = 3.439/4 = 86 %` (xấp xỉ 6.54 % — xem D38) |
 | E10 | 0.9 | 1e-6 | **0.06** | 153 | 153 | 9.18 | 10 | khả thi *hẳn*, nhưng chỉ pattern có `DO ≥ 9.18` ⇒ **gần như toàn bộ giỏ** (đây chính là ngưỡng 6 % của mushroom) |
 
 **Miền `∂` khả thi** — cột cuối là **giá trị xấp xỉ** `1/((1−f)·W)` (xem cảnh báo ở mục 2.5a: giá trị chính xác là `Z(f,TL)/N_eff`):
 
-| f | W (ε=1e-3) | W (ε=1e-6) | W (ε=1e-9) | `∂` tối đa ≲ (ε=1e-3 / 1e-6 / 1e-9) |
+| f | W (minOcc=1e-3) | W (minOcc=1e-6) | W (minOcc=1e-9) | `∂` tối đa ≲ (minOcc=1e-3 / 1e-6 / 1e-9) |
 |---|---|---|---|---|
 | 0.8 | 39 | 70 | 101 | 12.8 % / 7.14 % / 4.95 % |
 | **0.9** | 88 | 153 | 219 | 11.4 % / 6.54 % / 4.57 % |
 | 0.95 | 194 | 328 | 463 | 10.3 % / 6.10 % / 4.32 % |
 | 0.99 | 1 146 | 1 833 | 2 521 | 8.73 % / 5.46 % / 3.97 % |
 
-*(Ghi chú: `∂` tối đa dao động trong dải hẹp khoảng **4–13 %** suốt dải `f`, `ε` — đây là tính chất có lợi của công thức `minSup = ∂ × N_eff`: **miền `∂` khả thi rộng và ổn định**, không phụ thuộc kích thước dataset.)*
+*(Ghi chú: `∂` tối đa dao động trong dải hẹp khoảng **4–13 %** suốt dải `f`, `minOcc` — đây là tính chất có lợi của công thức `minSup = ∂ × N_eff`: **miền `∂` khả thi rộng và ổn định**, không phụ thuộc kích thước dataset.)*
 
-**Đối chiếu ngưỡng của paper với công thức mới** (`f = 0.9`, `ε = 1e-6` ⇒ `W = 153`, `N_eff = 153`, trần `Z = 10`):
+**Đối chiếu ngưỡng của paper với công thức mới** (`f = 0.9`, `minOcc = 1e-6` ⇒ `W = 153`, `N_eff = 153`, trần `Z = 10`):
 
 | Paper | ∂ của paper | minSup theo công thức mới | Kết luận |
 |---|---|---|---|
@@ -594,17 +594,17 @@ implementation/
 | Metric | Cách đo |
 |---|---|
 | Runtime tổng & theo giai đoạn | Wall-clock `System.nanoTime`; tách GĐ0/GĐ1/GĐ2/GĐ3 |
-| **Số lần evict / entry bị loại** | **mới** — đo trực tiếp hiệu quả của ε |
+| **Số lần evict / entry bị loại** | **mới** — đo trực tiếp hiệu quả của minOcc |
 | **Entry sống / tổng entry** | **mới** — tỉ lệ dữ liệu "còn giá trị" |
 | Peak memory | JMX (`MemoryPoolMXBean`) hoặc JFR |
 | Throughput | số DOP / giây |
 | Latency theo batch | thời gian mỗi phần 1/5 dataset |
 | Scalability | `kosarak` 200K→990K **và** `Chainstore` (1.11M) |
-| **Độ lệch ngữ nghĩa** | **mới** — `max_X | DO_win(X) − DO_full(X) |` phải ≤ ε (kiểm chứng INV-G ngoài test nhỏ) |
-| **Bảng ablation V1→V4** | **mới** — cùng `(∂, f, ε, dataset)`, 4 dòng: runtime, memory, #DOP, độ lệch |
-| So sánh chéo phiên bản | theo bảng 5.2, `f = 0.9`, `ε` cố định, chia 5 phần, ≥3 lần lấy median |
+| **Độ lệch ngữ nghĩa** | **mới** — `max_X | DO_win(X) − DO_full(X) |` phải ≤ minOcc (kiểm chứng INV-G ngoài test nhỏ) |
+| **Bảng ablation V1→V4** | **mới** — cùng `(∂, f, minOcc, dataset)`, 4 dòng: runtime, memory, #DOP, độ lệch |
+| So sánh chéo phiên bản | theo bảng 5.2, `f = 0.9`, `minOcc` cố định, chia 5 phần, ≥3 lần lấy median |
 
-**Tham số benchmark mặc định:** `f = 0.9`, `ε = 1e-6`, `∂` **chọn trong miền khả thi** mục 6.4 (không dùng ngưỡng của paper một cách máy móc); chia 5 phần incremental; chạy ≥3 lần lấy median; **ghi rõ phần cứng, JDK, số worker**.
+**Tham số benchmark mặc định:** `f = 0.9`, `minOcc = 1e-6`, `∂` **chọn trong miền khả thi** mục 6.4 (không dùng ngưỡng của paper một cách máy móc); chia 5 phần incremental; chạy ≥3 lần lấy median; **ghi rõ phần cứng, JDK, số worker**.
 
 ---
 
@@ -615,14 +615,14 @@ implementation/
 | **C0. Planning** | Lập plan tổng thể + 4 plan phiên bản; SRS; UI Layout; **`DECISIONS.md`** | `docs/plans/*`, `docs/srs/*`, `docs/DECISIONS.md` | — |
 | **G0. Khởi động** ✅ | Maven structure; `dhopm-common` seed; TestKit TC1–TC8; validate 10 dataset | `dhopm-common` + TestKit | C0 |
 | **G1. V1 Standard** ✅ | Level 1 threading, GoF, qua TC1–TC8, benchmark sơ bộ, tài liệu V1, CLI 5 lệnh, D6 | `dhopm-v1-standard` | G0 |
-| **G2. V2 Epsilon/Window** | `WindowMath` + validator trong `dhopm-common`; handle 2 tầng; evict O(1); `minSup` 2 pha; bound `min(DUBO,Z(X))`; short-circuit trần; **TC9–TC18**; `window`/`validate`/`sweep` CLI; **INV-I hồi quy**; đo ablation V1 vs V2 | `dhopm-v2-epsilon` + báo cáo đo ε | G1 |
+| **G2. V2 MinOcc/Window** | `WindowMath` + validator trong `dhopm-common`; handle 2 tầng; evict O(1); `minSup` 2 pha; bound `min(DUBO,Z(X))`; short-circuit trần; **TC9–TC18**; `window`/`validate`/`sweep` CLI; **INV-I hồi quy**; đo ablation V1 vs V2 | `dhopm-v2-minocc` + báo cáo đo minOcc | G1 |
 | **G3. V3 Optimized** | Cùng ngữ nghĩa V2, tối ưu: bỏ xích handle (int index), SoA/primitive, decay lookup, ForkJoin Level 2; benchmark đầy đủ | `dhopm-v3-optimized` + benchmark report | G2 |
 | **G4. V4 Extreme** | Data-oriented thuần, pipeline 3 pha, memory-mapped I/O; chỉ giữ gì đo được lợi | `dhopm-v4-extreme` + báo cáo | G3 |
 | **G5. Manager CLI/API** | `dhopm-cli`: `--json` one-shot + `serve` JSONL, registry, `JobManager`, `SessionManager`, `ResultAggregator`; đặc tả giao thức = contract cho `javanc` | `dhopm-cli` + protocol | song song G3/G4 |
-| **G6. Debug/Compare App** | `dhopm-app` (module UI riêng, loading/mining screen): chọn ≥1 engine, so sánh, debug nội bộ, **hiển thị cửa sổ ε và vòng đời pattern** | `dhopm-app` | G3 |
+| **G6. Debug/Compare App** | `dhopm-app` (module UI riêng, loading/mining screen): chọn ≥1 engine, so sánh, debug nội bộ, **hiển thị cửa sổ minOcc và vòng đời pattern** | `dhopm-app` | G3 |
 | **G7. Dữ liệu mở rộng (tuỳ chọn)** | Reader `Utility-FIMI` (chưa có dữ liệu, xem D42) | Utility-FIMI đọc được | có thể làm sớm hơn G2 |
 
-> **Chốt:** hiện tại ưu tiên **G2**. G3 → G4 → G6 theo thứ tự. G5 (Manager) có thể làm song song với G3/G4 vì không chặn thuật toán. **Chi tiết G2 ở `docs/plans/02-EPSILON-WINDOW-VERSION-PLAN.md` và `docs/phases/P2-G2.md`.**
+> **Chốt:** hiện tại ưu tiên **G2**. G3 → G4 → G6 theo thứ tự. G5 (Manager) có thể làm song song với G3/G4 vì không chặn thuật toán. **Chi tiết G2 ở `docs/plans/02-MINOCC-WINDOW-VERSION-PLAN.md` và `docs/phases/P2-G2.md`.**
 
 ---
 
@@ -631,14 +631,14 @@ implementation/
 | Rủi ro | Giảm thiểu |
 |---|---|
 | Mơ hồ thuật toán giữa paper và chạy tay | Đã khóa tại mục 2 (C1–C12); mọi thắc mắc phải quy về mốc [1]/[2], ghi thành **bổ sung canonical** + `DECISIONS.md` |
-| **ε làm sai kết quả so với paper** | Quy tắc `ε = 0 ⇒ ≡ paper` (INV-I) + bộ hồi quy TC1–TC8 ở mọi phiên bản + TC11/TC18 kiểm `\|ΔDO\| ≤ ε` |
-| **ε biến thành "tham số ngữ nghĩa" gây khó so sánh** | C12 bắt buộc khai báo `(∂, f, ε, TL)` cùng nhau; lệnh `window` in ra giá trị suy ra để không phải tính tay |
+| **minOcc làm sai kết quả so với paper** | Quy tắc `minOcc = 0 ⇒ ≡ paper` (INV-I) + bộ hồi quy TC1–TC8 ở mọi phiên bản + TC11/TC18 kiểm `\|ΔDO\| ≤ minOcc` |
+| **minOcc biến thành "tham số ngữ nghĩa" gây khó so sánh** | C12 bắt buộc khai báo `(∂, f, minOcc, TL)` cùng nhau; lệnh `window` in ra giá trị suy ra để không phải tính tay |
 | **Handle 2 tầng viết sai → đọc tham chiếu chết** | INV-H; test TC13; **không dùng `try/catch` để bắt lỗi dereference** |
 | Evict không đồng bộ giữa các node | Evict đơn luồng trước mọi pha song song (C10); phát hiện là head-offset nội bộ mỗi node ⇒ không phụ thuộc thứ tự |
 | DUBO không còn hợp lệ sau evict | DUBO tính **chỉ trên entry sống** (C1 + 2.3) ⇒ toàn bộ tính toán diễn ra trên **cùng một instance** (cửa sổ hiện tại) ⇒ Lemma 2 vẫn đúng |
 | Kết quả lệch khi song song hoá | INV-E + C5; `DeterminismAssert` |
 | ~~Dataset FIMI thiếu dataset của paper~~ | ✅ **Đã có** `accidents.dat` (dataset của paper) + `chainstore.dat` (1.11M) trong bộ benchmark |
-| Sai số số thực | C4 (`ε_cmp = 1e-9`); tolerance riêng khi so bảng 4 chữ số |
+| Sai số số thực | C4 (`ε = 1e-9`); tolerance riêng khi so bảng 4 chữ số |
 | `∂` người dùng chọn nằm ngoài miền khả thi | Validator + short-circuit (§2.5a) + lệnh `window` in miền khả thi |
 
 ---
@@ -655,12 +655,12 @@ implementation/
 | D6 | Công cụ ↔ thuật toán | **Chỉ qua API ổn định ở `dhopm-common`**; CLI = client của API; bộ lệnh chuẩn (4.2) |
 | D7 | Frontend ↔ Backend | Frontend qua **1 Manager CLI/API duy nhất** (4.3); hợp đồng = đặc tả giao thức |
 | D8 | Quản lý tài nguyên | **Plan riêng**: `ResourceManager → native API → WindowsModule/MacModule` |
-| **D9** | **ε là gì** | **ε = sai số hệ thống do người dùng đặt, đóng vai trò ngưỡng DƯỚI của DO**; quyết định cửa sổ. **Đổi tên `epsilon` cũ (so sánh 1e-9) → `epsilonCmp`** |
-| **D10** | **Công thức cửa sổ** | `W = ⌈ln(ε(1−f))/ln f⌉`; `ε=0` hoặc `f=1` ⇒ `W = ∞`; `ε ≥ 1/(1−f)` ⇒ lỗi cấu hình |
+| **D9** | **minOcc là gì** | **`minOcc` (occupancy threshold) = ngưỡng occupancy do người dùng đặt, đóng vai trò ngưỡng DƯỚI của DO**; quyết định cửa sổ. Tham số `epsilon` (ε, 1e-9) giữ cho **sai số so sánh** |
+| **D10** | **Công thức cửa sổ** | `W = ⌈ln(minOcc(1−f))/ln f⌉`; `minOcc=0` hoặc `f=1` ⇒ `W = ∞`; `minOcc ≥ 1/(1−f)` ⇒ lỗi cấu hình |
 | **D11** | **Đơn vị của minSup** | `minSup = ∂ × N_eff`, `N_eff = min(TL, W)` — **2 giai đoạn** |
 | **D12** | **Cơ chế evict** | **Handle 2 tầng `ref1 → ref2`**; evict O(1); phát hiện chết trong lúc duyệt entry; entry chết là tiền tố ⇒ `head` offset |
-| **D13** | **Số phiên bản** | **4**: V1 paper/GoF · V2 ε · V3 tối ưu ε · V4 cực đoan ε. Ưu tiên V1(✅) → V2 → V3 → V4 |
-| **D14** | **Tương đương paper** | `ε = 0` (hoặc `W ≥ TL`) ⇒ **mọi phiên bản phải bit-for-bit ≡ V1** (INV-I) |
+| **D13** | **Số phiên bản** | **4**: V1 paper/GoF · V2 minOcc · V3 tối ưu minOcc · V4 cực đoan minOcc. Ưu tiên V1(✅) → V2 → V3 → V4 |
+| **D14** | **Tương đương paper** | `minOcc = 0` (hoặc `W ≥ TL`) ⇒ **mọi phiên bản phải bit-for-bit ≡ V1** (INV-I) |
 | **D15** | **Nơi chốt quyết định** | `docs/DECISIONS.md` là nguồn chân lý; các plan không tự quyết lại |
 
 ---
@@ -668,20 +668,20 @@ implementation/
 ## 11. Tiêu chí Hoàn thành Tổng thể
 
 - [ ] `docs/DECISIONS.md` có mọi quyết định `D1…D15` + lý do + trạng thái.
-- [ ] SRS + UI Layout cập nhật cho 4 phiên bản và ngữ nghĩa ε.
+- [ ] SRS + UI Layout cập nhật cho 4 phiên bản và ngữ nghĩa minOcc.
 - [ ] TestKit **TC1–TC18** xanh trên V1 (TC1–TC8), V2, V3, V4.
-- [ ] **INV-I**: `ε=0` ⇒ V2/V3/V4 bit-for-bit ≡ V1.
-- [ ] **INV-G**: `|DO_win − DO_full| ≤ ε` trên toàn bộ dataset benchmark.
+- [ ] **INV-I**: `minOcc=0` ⇒ V2/V3/V4 bit-for-bit ≡ V1.
+- [ ] **INV-G**: `|DO_win − DO_full| ≤ minOcc` trên toàn bộ dataset benchmark.
 - [ ] V2 có đủ cơ chế: `WindowMath`, validator, handle 2 tầng, evict O(1), minSup 2 pha, bound `min(DUBO, Z(X))`, short-circuit trần.
-- [ ] **Bảng ablation V1→V4** trên ≥4 dataset (dense + sparse), median ≥3 lần, có cột "độ lệch ≤ ε".
+- [ ] **Bảng ablation V1→V4** trên ≥4 dataset (dense + sparse), median ≥3 lần, có cột "độ lệch ≤ minOcc".
 - [ ] V3 có microbenchmark từng tối ưu + kết luận giữ/thay kèm số liệu.
 - [ ] V4 chỉ giữ tối ưu **đo được lợi**; có báo cáo "giữ / bỏ" từng ý tưởng.
 - [ ] Mỗi module engine có bộ tài liệu riêng (README, design từng thành phần/hàm, test plan, benchmark report).
-- [ ] Scalability: `kosarak` 200K→990K **và** `Chainstore`; **memory đỉnh gần như phẳng theo N** (bằng chứng cụ thể cho giá trị của ε).
+- [ ] Scalability: `kosarak` 200K→990K **và** `Chainstore`; **memory đỉnh gần như phẳng theo N** (bằng chứng cụ thể cho giá trị của minOcc).
 - [ ] CLI: `mine/detail/stream/golden/inspect/window/validate/sweep` trên cả 4 version.
 - [ ] G5: Manager CLI/API + đặc tả giao thức = contract cho frontend `javanc`.
-- [ ] G6: app chọn ≥1 engine, so sánh, debug nội bộ, **hiển thị cửa sổ ε và vòng đời pattern**.
+- [ ] G6: app chọn ≥1 engine, so sánh, debug nội bộ, **hiển thị cửa sổ minOcc và vòng đời pattern**.
 
 ---
 
-*Kết thúc Plan tổng thể. Chi tiết từng phiên bản tại `01-STANDARD-VERSION-PLAN.md`, `02-EPSILON-WINDOW-VERSION-PLAN.md`, `03-OPTIMIZED-VERSION-PLAN.md`, `04-EXTREME-VERSION-PLAN.md`. Giao tiếp Frontend↔Backend tại `05-BACKEND-CLIAPI-PLAN.md` (phân tích draft: `06-BACKEND-CLIAPI-DRAFT-ANALYSIS.md`). Quyết định tại `../DECISIONS.md`.*
+*Kết thúc Plan tổng thể. Chi tiết từng phiên bản tại `01-STANDARD-VERSION-PLAN.md`, `02-MINOCC-WINDOW-VERSION-PLAN.md`, `03-OPTIMIZED-VERSION-PLAN.md`, `04-EXTREME-VERSION-PLAN.md`. Giao tiếp Frontend↔Backend tại `05-BACKEND-CLIAPI-PLAN.md` (phân tích draft: `06-BACKEND-CLIAPI-DRAFT-ANALYSIS.md`). Quyết định tại `../DECISIONS.md`.*

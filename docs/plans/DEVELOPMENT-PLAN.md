@@ -24,18 +24,18 @@
 
 ## 2. LỘ TRÌNH PHÁT TRIỂN (ROADMAP)
 
-### G2 — V2 Epsilon/Window (**ƯU TIÊN SỐ 1**) — *"Đổi đẳng cấp phức tạp"*
+### G2 — V2 MinOcc/Window (**ƯU TIÊN SỐ 1**) — *"Đổi đẳng cấp phức tạp"*
 **Thời gian:** 2–3 tuần | **Đầu vào:** V1 oracle hoàn tất | **Đầu ra:** V2 chạy, ablation V1↔V2
 
 | Mốc | Nội dung | Tiêu chí kỹ thuật (Done Criteria) | Sản phẩm |
 |-----|----------|-----------------------------------|----------|
-| **G2-M1** | Nền tảng cửa sổ trong `dhopm-common` | `WindowMathTest` xanh: khớp bảng W (§2.3.1 Plan 00), bảng ∂ khả thi (§6.4), **case TL<W phân biệt 2 công thức D38**. `ParameterValidator` ném mã lỗi ổn định. V1 vẫn xanh sau đổi tên `epsilon`→`epsilonCmp`. | `WindowMath`, `WindowInfo`, `ParameterValidator`, `WindowAwareEngine`, `MiningConfig` cập nhật |
+| **G2-M1** | Nền tảng cửa sổ trong `dhopm-common` | `WindowMathTest` xanh: khớp bảng W (§2.3.1 Plan 00), bảng ∂ khả thi (§6.4), **case TL<W phân biệt 2 công thức D38**. `ParameterValidator` ném mã lỗi ổn định. V1 vẫn xanh sau khi thêm `minOcc` (cửa sổ). | `WindowMath`, `WindowInfo`, `ParameterValidator`, `WindowAwareEngine`, `MiningConfig` cập nhật |
 | **G2-M2** | Handle & Evict (GĐ0) | `Handle` + `WindowBuffer` circular O(1). `Entry(ref1,ref2,tid)` + `isLive()` check `tid` **bắt buộc**. Test nạp `≥2W` tx: **không đọc nhầm transaction mới** (D39). Evict đơn luồng trong `loadBatch` trước mọi pha song song. | `dhopm.v2.window.*`, `Entry`, `DHONode.head/size` |
 | **G2-M3** | minSup 2 pha & Reconstruction | `minSup = ∂ × min(TL, W)` tính tại `mineNow`. `Reconstructor` dời `head`, DO chỉ entry sống. Level 1 threading. | `DHOListBuilder` (bỏ qua tx ngoài cửa sổ), `Reconstructor` |
-| **G2-M4** | Trần, Bound & Mining | `ZCalculator` (`Z(f,TL)`, `Z(X)`). `DUBOCalculator` trả `UB' = min(DUBO, Z)`. Short-circuit `minSup > Z + ε_cmp` ⇒ ∅ O(1) + cảnh báo có số liệu. `Miner` dùng support sống, prune `UB'`. | `ZCalculator`, `DUBOCalculator`, `Miner`, `MiningEngineV2` |
-| **G2-M5** | Nghiệm thu đúng đắn | **TC1–TC8 (ε=0) bit-for-bit ≡ V1** (INV-I). **TC9–TC18 + E1–E10 xanh**. Determinism workers {1,2,4,CPU}. Test `ε=0` không kích hoạt cửa sổ. | Test report đầy đủ |
+| **G2-M4** | Trần, Bound & Mining | `ZCalculator` (`Z(f,TL)`, `Z(X)`). `DUBOCalculator` trả `UB' = min(DUBO, Z)`. Short-circuit `minSup > Z + ε` ⇒ ∅ O(1) + cảnh báo có số liệu. `Miner` dùng support sống, prune `UB'`. | `ZCalculator`, `DUBOCalculator`, `Miner`, `MiningEngineV2` |
+| **G2-M5** | Nghiệm thu đúng đắn | **TC1–TC8 (minOcc=0) bit-for-bit ≡ V1** (INV-I). **TC9–TC18 + E1–E10 xanh**. Determinism workers {1,2,4,CPU}. Test `minOcc=0` không kích hoạt cửa sổ. | Test report đầy đủ |
 | **G2-M6** | CLI & Quan sát | Lệnh `window` (không cần dataset, trả asymptotic + hậu tố), `validate` (mã lỗi ổn định), `sweep` (quét tổ hợp). `windowInfo` trong output `mine`/`detail`. `golden` chạy TC1–TC18. | CLI commands mới |
-| **G2-M7** | Đo lường & Báo cáo | Instrumentation (evict count, live/dead, prune-hit). **Đo `|DO_win − DO_full|` trên dataset thật ⇒ kiểm chứng INV-G**. Ablation V1↔V2 ≥4 dataset (dense+sparse), cùng `(∂,f,ε)`, 5 phần, median ≥3 lần. **Scalability kosarak 200K→990K: memory đỉnh gần như phẳng**. Báo cáo ghi phần cứng/JDK/workers. | Báo cáo ablation V1↔V2, benchmark report |
+| **G2-M7** | Đo lường & Báo cáo | Instrumentation (evict count, live/dead, prune-hit). **Đo `|DO_win − DO_full|` trên dataset thật ⇒ kiểm chứng INV-G**. Ablation V1↔V2 ≥4 dataset (dense+sparse), cùng `(∂,f,minOcc)`, 5 phần, median ≥3 lần. **Scalability kosarak 200K→990K: memory đỉnh gần như phẳng**. Báo cáo ghi phần cứng/JDK/workers. | Báo cáo ablation V1↔V2, benchmark report |
 
 ---
 
@@ -52,15 +52,15 @@
 
 ---
 
-### G3 — V3 Optimized — *"Tối ưu trên nền ε"*
+### G3 — V3 Optimized — *"Tối ưu trên nền minOcc"*
 **Thời gian:** 2 tuần | **Đầu vào:** V2 hoàn tất + benchmark baseline | **Đầu ra:** V3 ≡ V2, nhanh hơn ≥ 3/4 dataset
 
 | Mốc | Nội dung | Tiêu chí kỹ thuật |
 |-----|----------|-------------------|
-| **G3-M1** | Baseline V2 benchmark | Chạy V2 trên 10 dataset, f=0.9, ε cố định, ∂ trong miền khả thi, 5 phần, median ≥3. Lưu số liệu làm denominator. |
+| **G3-M1** | Baseline V2 benchmark | Chạy V2 trên 10 dataset, f=0.9, minOcc cố định, ∂ trong miền khả thi, 5 phần, median ≥3. Lưu số liệu làm denominator. |
 | **G3-M2** | Cải tiến cấu trúc dữ liệu (tuần tự → song song) | **Microbenchmark từng điểm** (14 điểm Plan 03 §4). Chỉ giữ phương án **speedup ≥ 1.2x HOẶC memory ↓ ≥ 20%**. Ghi rationale + số liệu. Điểm then chốt: bỏ Handle→`int txSlot`, SoA WindowBuffer, decay lookup `k=TL-tid`, Item=int + dict. |
 | **G3-M3** | Threading Level 2 (ForkJoinPool) | Reconstruction node/task trên ForkJoin. Mining chia cây con theo ngưỡng độ sâu + min task size. Determinism pool {1,2,4,CPU}. Construction song song **có switch** (tắt nếu không tốt). |
-| **G3-M4** | Nghiệm thu | **ε=0 ≡ V1/V2; ε>0 ≡ V2 double đầy đủ**. Determinism. Không còn đối tượng Handle. |
+| **G3-M4** | Nghiệm thu | **minOcc=0 ≡ V1/V2; minOcc>0 ≡ V2 double đầy đủ**. Determinism. Không còn đối tượng Handle. |
 | **G3-M5** | Benchmark đầy đủ & Báo cáo | 10 dataset + scalability kosarak/chainstore. So sánh V1↔V2↔V3: runtime 3 pha, peak memory, throughput, latency batch, ratio. Báo cáo kèm quyết định tối ưu từng điểm. |
 
 ---
@@ -76,7 +76,7 @@
 
 ### G6 — Debug/Compare App (`dhopm-app`) — *"Thấy được, hiểu được"*
 **Bắt đầu SAU KHI G2 CÓ BẢNG SỐ** (STRATEGY quy tắc vàng)
-- 2 tab: **Trends** (vòng đời pattern qua stream) + **Explain** (click pattern → xem DO, DUBO, Z(X), prune reason, cửa sổ ε)
+- 2 tab: **Trends** (vòng đời pattern qua stream) + **Explain** (click pattern → xem DO, DUBO, Z(X), prune reason, cửa sổ minOcc)
 - Mining chạy nền, loading screen + progress (NFR-FX)
 - Module riêng, không đụng logic engine
 
@@ -91,31 +91,31 @@
 
 ### 3.1 Mức bắt buộc (Mọi giai đoạn)
 - [ ] **TC1–TC18 xanh** trên engine tương ứng
-- [ ] **INV-I**: `ε = 0` ⇒ V2/V3/V4 bit-for-bit ≡ V1
-- [ ] **INV-G**: `|DO_win − DO_full| ≤ ε` kiểm chứng trên dataset thật
+- [ ] **INV-I**: `minOcc = 0` ⇒ V2/V3/V4 bit-for-bit ≡ V1
+- [ ] **INV-G**: `|DO_win − DO_full| ≤ minOcc` kiểm chứng trên dataset thật
 - [ ] **Determinism**: Cùng input/tham số → cùng output bit-for-bit với workers {1,2,4,CPU}
 - [ ] **Median ≥ 3 lần** + ghi rõ: phần cứng, JDK, số worker, OS
 - [ ] Mọi quyết định mới có `D<n>` trong `DECISIONS.md`
 - [ ] Không tài liệu mâu thuẫn (cao hơn trong thang thắng)
 
-### 3.2 Mức cửa sổ ε (G2+)
+### 3.2 Mức cửa sổ minOcc (G2+)
 - [ ] Evict **O(1)** đo được (không phụ thuộc số node)
 - [ ] Peak memory **gần như phẳng** khi stream dài ≥ 10× N (kosarak 200K→990K)
 - [ ] `window`/`validate` trả số liệu đúng khớp `WindowMathTest`
 - [ ] `mushroom ∂=6%` **không còn chạy 300s**: hoặc cảnh báo "∂ vượt miền khả thi", hoặc ra kết quả trong vài giây
-- [ ] Bảng ablation V1→V4 có cột: evict count, memory, runtime, độ lệch ≤ ε
+- [ ] Bảng ablation V1→V4 có cột: evict count, memory, runtime, độ lệch ≤ minOcc
 
 ### 3.3 Mức Manager CLI/API (G5)
 - [ ] Cùng request qua `--json` và CLI text → **cùng kết quả**
 - [ ] Request nhiều version → `perVersion` đúng, không crash, kết quả trùng từng version chạy riêng
 - [ ] `window` trả `W` khớp `WindowMathTest` (bảng tra cứu Plan 00 §2.3.1)
-- [ ] `validate` trả mã lỗi ổn định + thông điệp có số liệu (`INFEASIBLE_PARTIAL`, `EPSILON_TOO_LARGE`, `WINDOW_TOO_LARGE`, `PARTIAL_ZERO`)
+- [ ] `validate` trả mã lỗi ổn định + thông điệp có số liệu (`INFEASIBLE_PARTIAL`, `MIN_OCC_TOO_LARGE`, `WINDOW_TOO_LARGE`, `PARTIAL_ZERO`)
 - [ ] Stream lớn (kosarak, `--limit`) có progress event, không đóng băng
 - [ ] Golden TC1–TC18 vẫn xanh sau khi thêm Manager
 - [ ] Frontend hiển thị đúng chỉ qua `BackendClient` (không import backend class)
 
 ### 3.4 Mức V3 (G3)
-- [ ] ≡ V2 (kể cả `ε > 0`) double đầy đủ
+- [ ] ≡ V2 (kể cả `minOcc > 0`) double đầy đủ
 - [ ] **Không còn đối tượng Handle** (INV-H tự thoả)
 - [ ] Nhanh hơn V2 ở ≥ 3/4 dataset (hoặc phân tích rõ tại sao không)
 - [ ] Report rõ từng quyết định tối ưu kèm số liệu trước/sau (microbenchmark)
@@ -151,10 +151,10 @@
 ## 6. CHECKLIST KHỞI ĐỘNG G2 (TUẦN TUẦN)
 
 ### Tuần 1: G2-M1 + M2 (Nền tảng + Handle/Evict)
-- [ ] Tạo module `dhopm-v2-epsilon` + dependency `dhopm-common`
+- [ ] Tạo module `dhopm-v2-minocc` + dependency `dhopm-common`
 - [ ] `WindowMath` + `ParameterValidator` + `WindowInfo` + `WindowAwareEngine` trong `dhopm-common`
 - [ ] `WindowMathTest`: bảng W, bảng ∂, **case TL<W** (D38)
-- [ ] Đổi `epsilon` → `epsilonCmp`, thêm `epsilon` default `1e-6` trong `MiningConfig`
+- [ ] Thêm `minOcc` (cửa sổ) default `1e-6` vào `MiningConfig`; `epsilon` = sai số so sánh
 - [ ] `Handle`, `WindowBuffer` circular, `evict(tid)` O(1)
 - [ ] `Entry(ref1,ref2,tid)` + `isLive()` check `tid`
 - [ ] Test nạp `2W` tx: không đọc nhầm transaction mới
@@ -165,11 +165,11 @@
 - [ ] `minSup = ∂ × min(TL, W)` tại `mineNow`
 - [ ] `Reconstructor` dời `head`, DO chỉ entry sống, Level 1
 - [ ] `ZCalculator`, `DUBOCalculator` trả `UB'`
-- [ ] Short-circuit `minSup > Z + ε_cmp`
+- [ ] Short-circuit `minSup > Z + ε`
 - [ ] `Miner` support sống + prune `UB'`
 
 ### Tuần 3: G2-M5 + M6 + M7 (Nghiệm thu + CLI + Đo lường)
-- [ ] TC1–TC8 (ε=0) ≡ V1 bit-for-bit
+- [ ] TC1–TC8 (minOcc=0) ≡ V1 bit-for-bit
 - [ ] TC9–TC18 + E1–E10 xanh
 - [ ] Determinism workers {1,2,4,CPU}
 - [ ] CLI `window`/`validate`/`sweep` + `windowInfo` output
@@ -184,7 +184,7 @@
 
 **Thứ tự ưu tiên tuyệt đối:**
 1. **C1, C2, C7** — Dọn dẹp tài liệu/CLI mâu thuẫn (1–2 ngày, **làm ngay**)
-2. **G2 (V2 Epsilon/Window)** — Toàn lực 2–3 tuần, tạo ra giá trị khoa học cốt lõi
+2. **G2 (V2 MinOcc/Window)** — Toàn lực 2–3 tuần, tạo ra giá trị khoa học cốt lõi
 3. **G5-MA0, MA1** — Song song G3, chốt Protocol + Manager tối thiểu cho Frontend
 4. **G3 (V3 Optimized)** — Profile thật, microbenchmark, chỉ giữ tối ưu đo được lợi
 5. **G6 (App)** — Chỉ bắt đầu khi G2 có bảng số

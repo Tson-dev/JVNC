@@ -10,21 +10,21 @@
 ### 1.1 Canonical Spec — Nền móng thuật toán (Plan 00 §2, DECISIONS D9–D23, D38–D41)
 | Yếu tố | Trạng thái | Ghi chú |
 |--------|------------|---------|
-| Tham số đầu vào (`∂`, `f`, `ε`, `ε_cmp`, `W`, `N_eff`) | ✅ **Chốt** | Miền giá trị, mặc định, quy tắc biên rõ ràng (C7–C12) |
+| Tham số đầu vào (`∂`, `f`, `minOcc`, `ε`, `W`, `N_eff`) | ✅ **Chốt** | Miền giá trị, mặc định, quy tắc biên rõ ràng (C7–C12) |
 | Pipeline 4 giai đoạn (GĐ0–GĐ3) | ✅ **Chốt** | GĐ0 mới cho V2+, V1 bỏ qua (W=∞) |
-| Công thức cửa sổ `W = ⌈ln(ε(1−f))/ln f⌉` | ✅ **Chốt** | Có bảng tra cứu, xử lý trường hợp biên (ε=0, f=1, ε≥1/(1−f)) |
+| Công thức cửa sổ `W = ⌈ln(minOcc(1−f))/ln f⌉` | ✅ **Chốt** | Có bảng tra cứu, xử lý trường hợp biên (minOcc=0, f=1, minOcc≥1/(1−f)) |
 | `minSup` 2 giai đoạn (`∂ × min(TL, W)`) | ✅ **Chốt** | Pha 1: `∂×TL`, Pha 2: `∂×W` đóng băng |
-| Trần DO `Z(f,TL)` + short-circuit | ✅ **Chốt** | `minSup > Z + ε_cmp` ⇒ ∅ tức thì O(1) |
+| Trần DO `Z(f,TL)` + short-circuit | ✅ **Chốt** | `minSup > Z + ε` ⇒ ∅ tức thì O(1) |
 | Bound chặt hơn `UB'(X) = min(DUBO, Z(X))` | ✅ **Chốt** | Tính cùng vòng duyệt entry, chỉ prune thêm |
 | Handle 2 tầng `ref1 → ref2` + `Entry.tid` chống slot tái dùng | ✅ **Chốt** | Evict O(1), phát hiện chết ẩn trong pha duyệt, compaction bằng `head` |
-| Bất biến toàn cục INV-A–J | ✅ **Chốt** | INV-I (ε=0 ≡ V1), INV-G (|DO_win−DO_full|≤ε) là then chốt |
-| Quy tắc `ε` 2 tầng (thư viện có default, giao thức bắt buộc khai báo) | ✅ **Chốt** | D41: tránh im lặng thay đổi tập DOP |
+| Bất biến toàn cục INV-A–J | ✅ **Chốt** | INV-I (minOcc=0 ≡ V1), INV-G (|DO_win−DO_full|≤minOcc) là then chốt |
+| Quy tắc `minOcc` 2 tầng (thư viện có default, giao thức bắt buộc khai báo) | ✅ **Chốt** | D41: tránh im lặng thay đổi tập DOP |
 
 ### 1.2 Kiến trúc 4 phiên bản (Plan 00 §1.1, §8, DECISIONS D13)
 | Phiên bản | Module | Định vị | Threading | Trạng thái |
 |-----------|--------|---------|-----------|------------|
-| V1 Standard | `dhopm-v1-standard` | Oracle (ε=0), GoF | Level 1 | ✅ **Hoàn thành, đóng băng** |
-| V2 Epsilon | `dhopm-v2-epsilon` | Ngữ nghĩa cửa sổ ε | Level 1 | 🕔 **Chưa bắt đầu (G2)** |
+| V1 Standard | `dhopm-v1-standard` | Oracle (minOcc=0), GoF | Level 1 | ✅ **Hoàn thành, đóng băng** |
+| V2 MinOcc | `dhopm-v2-minocc` | Ngữ nghĩa cửa sổ minOcc | Level 1 | 🕔 **Chưa bắt đầu (G2)** |
 | V3 Optimized | `dhopm-v3-optimized` | Tối ưu cấu trúc dữ liệu | Level 2 | 🕓 Sau G2 |
 | V4 Extreme | `dhopm-v4-extreme` | Trần hiệu năng | Level 3 | 🕓 Sau G3 |
 
@@ -34,10 +34,10 @@
 - **WindowMath**, **ParameterValidator**, **WindowInfo** — định nghĩa dùng chung cho cả 4 version (D22)
 
 ### 1.4 Bộ test chuẩn (Plan 00 §6, V1 test-report.md)
-- **TC1–TC8** (ε=0): Golden reference, bắt buộc pass trên **mọi** phiên bản (INV-I)
-- **TC9–TC18** (ε>0): Ngữ nghĩa cửa sổ, chỉ V2+
+- **TC1–TC8** (minOcc=0): Golden reference, bắt buộc pass trên **mọi** phiên bản (INV-I)
+- **TC9–TC18** (minOcc>0): Ngữ nghĩa cửa sổ, chỉ V2+
 - **E1–E10**: Trường hợp biên tham số (bắt buộc)
-- **Double đầy đủ** so sánh chéo version (bit-for-bit khi ε=0)
+- **Double đầy đủ** so sánh chéo version (bit-for-bit khi minOcc=0)
 
 ### 1.5 Giai đoạn G1 — V1 Standard (P1-G1.md, G1 Report)
 - ✅ 56 test xanh, deterministic bit-for-bit workers {1,2,4,CPU}
@@ -68,7 +68,7 @@ Khuyến nghị: Dùng thiết kế **V1 implementation** (flag-based, subcomman
 | Chế độ: **One-shot** (`--json`) vs **Daemon** (`serve`) | Plan 05 muốn **cả 2** (OP-2) | Xác nhận MA1 làm cả 2 |
 | Engine chạy **in-process** vs **subprocess** | Plan 05 OP-3: in-process trước | Xác nhận |
 | Schema `window`/`validate` trả `maxPartialAsymptotic` khi không có `TL` | Plan 05 §7 có quy tắc, nhưng **chưa có test case** | Bổ sung test |
-| Mã lỗi ổn định cho validator (`INFEASIBLE_PARTIAL`, `EPSILON_TOO_LARGE`...) | Plan 05 §10, P2-G2 §5 M6 | Triển khai đồng bộ |
+| Mã lỗi ổn định cho validator (`INFEASIBLE_PARTIAL`, `MIN_OCC_TOO_LARGE`...) | Plan 05 §10, P2-G2 §5 M6 | Triển khai đồng bộ |
 | Frontend (`javanc`) có chạy máy khác không? | D34 **chưa chốt** | Hỏi Tâm — quyết định stdio vs TCP |
 
 ### 2.3 Hệ thống Config (Draft CLI-A/C, Plan 05 G-1) — **CHƯA CÓ**
@@ -91,7 +91,7 @@ Khuyến nghị: Dùng thiết kế **V1 implementation** (flag-based, subcomman
 - Draft: recovery đầy đủ (job ledger, replay)
 - Plan 06 §4.3: **Recovery mức nhẹ (MA2)** — chỉ ledger + lastTid + replay file (rẻ, đủ)
 - Plan 05 MA2: có `JobLedger` + session persistence mức nhẹ
-- DECISIONS §6: **Bác bỏ recovery đầy đủ** — sau cửa sổ ε, 1 lần `mine` vài giây
+- DECISIONS §6: **Bác bỏ recovery đầy đủ** — sau cửa sổ minOcc, 1 lần `mine` vài giây
 - **→ Cần làm rõ: có làm recovery mức nhẹ ở MA2 không? Nếu có, scope gì?**
 
 ### 2.6 Benchmark tham số chính thức (G1 Report §5, Plan 00 §7, STRATEGY §3.2)
@@ -118,11 +118,11 @@ Khuyến nghị: Dùng thiết kế **V1 implementation** (flag-based, subcomman
 
 ## 3. LỖ HỒNG KỸ THUẬT (THIẾU, CHƯA TRIỂN KHAI, RỦI RO CAO)
 
-### 3.1 Toàn bộ V2 Epsilon/Window — **CHƯA CÓ CODE** (G2)
+### 3.1 Toàn bộ V2 MinOcc/Window — **CHƯA CÓ CODE** (G2)
 | Thành phần | Plan tham chiếu | Trạng thái |
 |------------|----------------|------------|
 | `WindowMath.computeWindow`, `maxPartialExact/Asymptotic` | P2-G2 M1, Plan 02 §5.1 | ❌ Chưa có |
-| `ParameterValidator` (miền ∂, f, ε, mã lỗi) | P2-G2 M1, Plan 02 §5.1 | ❌ Chưa có |
+| `ParameterValidator` (miền ∂, f, minOcc, mã lỗi) | P2-G2 M1, Plan 02 §5.1 | ❌ Chưa có |
 | `WindowInfo`, `WindowAwareEngine`, `WindowListener` | P2-G2 M1, Plan 02 §5 | ❌ Chưa có |
 | `Handle`, `WindowBuffer` (circular, evict O(1)) | P2-G2 M2, Plan 02 §5.2 | ❌ Chưa có |
 | `Entry(ref1, ref2, tid)` + `isLive()` check `tid` | P2-G2 M2, Plan 02 §5.2.1 (D39) | ❌ Chưa có |
@@ -130,7 +130,7 @@ Khuyến nghị: Dùng thiết kế **V1 implementation** (flag-based, subcomman
 | `minSup = ∂ × min(TL, W)` tính tại `mineNow` | P2-G2 M3, Plan 02 §5.3 | ❌ Chưa có |
 | `Reconstructor` dời `head`, DO chỉ entry sống | P2-G2 M3 | ❌ Chưa có |
 | `ZCalculator` (`Z(f,TL)`, `Z(X)`), `DUBOCalculator` trả `UB'` | P2-G2 M4 | ❌ Chưa có |
-| Short-circuit toàn cục `minSup > Z + ε_cmp` | P2-G2 M4, Plan 02 §5.4 | ❌ Chưa có |
+| Short-circuit toàn cục `minSup > Z + ε` | P2-G2 M4, Plan 02 §5.4 | ❌ Chưa có |
 | `Miner` dùng support sống, prune `UB'` | P2-G2 M4 | ❌ Chưa có |
 | TC9–TC18 + E1–E10 | P2-G2 M5, Plan 02 §6 | ❌ Chưa có |
 | CLI `window`/`validate`/`sweep` | P2-G2 M6, Plan 02 §7 | ❌ Chưa có |

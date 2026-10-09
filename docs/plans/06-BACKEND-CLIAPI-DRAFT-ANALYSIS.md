@@ -12,7 +12,7 @@
 > | Nội dung trong bản nháp | Phán quyết hiện tại |
 > |---|---|
 > | **SPI / plugin discovery**, mỗi thuật toán "đăng ký lên controller" (CLI-B, FLOW-B) | ⛔ **Bác bỏ** — có đúng 4 engine biết trước tên; hardcode list factory rõ hơn |
-> | **Recovery** (SYS-A) / ledger phiên chạy | ⛔ **Bác bỏ** — sau cửa sổ ε một lần `mine` chỉ vài giây; replay construction vẫn khả dụng (INV-A/B) |
+> | **Recovery** (SYS-A) / ledger phiên chạy | ⛔ **Bác bỏ** — sau cửa sổ minOcc một lần `mine` chỉ vài giây; replay construction vẫn khả dụng (INV-A/B) |
 > | **JobManager / worker thật** (FLOW-C) | ⛔ **Để sau** — đã đồng bộ hoá đơn luồng (INV-E); không cần tách vai |
 > | **`ResourceManager` → native Windows/macOS** (CLI-E, SYS-B, MA4) | ⛔ **Bác bỏ** (D8) — dùng `workers` / `limit` / `parts` là đủ |
 > | **Daemon TCP / remote LAN** (FLOW-A) | ⛔ **Bác bỏ** — chưa có nhu cầu; JSONL qua stdio là đủ (D34 đang cân nhắc) |

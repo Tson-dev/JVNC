@@ -5,26 +5,26 @@ Dự án triển khai và nghiên cứu thuật toán khai thác **DOP (Damped O
 | Phiên bản | Tên | Module | Threading | Trạng thái |
 |---|---|---|---|---|
 | **V1** | Standard (GoF, **oracle**) | `dhopm-v1-standard` | Level 1 | ✅ **Xong (G1)** — đóng băng |
-| **V2** | **Epsilon / Window** | `dhopm-v2-epsilon` | Level 1 | 🕔 **Kế tiếp (G2)** |
+| **V2** | **MinOcc / Window** | `dhopm-v2-minocc` | Level 1 | ✅ **Xong (G2, early-access)** |
 | **V3** | Optimized | `dhopm-v3-optimized` | Level 2 (ForkJoinPool) | 🕓 Chưa code |
 | **V4** | Extreme | `dhopm-v4-extreme` | Level 3 (data-oriented) | 🕓 Chưa code |
 
 Còn lại: `dhopm-common` (hạ tầng chung + `WindowMath`), `dhopm-bench` (benchmark), `dhopm-app` (debug/compare app + UI, G4).
 
-## Ý tưởng trung tâm — cửa sổ ε
+## Ý tưởng trung tâm — cửa sổ minOcc
 
 Nguồn ý tưởng: `docs/Draft Idea.txt` (tác giả). Chuẩn hoá tại `docs/plans/00-OVERALL-PLAN.md` §2.
 
 ```
-W(f,ε)  = ⌈ln(ε(1−f)) / ln f⌉          kích thước cửa sổ (ε=0 hoặc f=1 ⇒ W = ∞)
+W(f,minOcc)  = ⌈ln(minOcc(1−f)) / ln f⌉          kích thước cửa sổ (minOcc=0 hoặc f=1 ⇒ W = ∞)
 N_eff   = min(TL, W)
 minSup  = ∂ × N_eff                    hai giai đoạn: TL<W ⇒ ∂×TL ; TL≥W ⇒ ∂×W
 ```
 
 Ba hệ quả quan trọng:
 
-1. **Bất biến bảo toàn:** `ε = 0` ⇒ mọi phiên bản cho kết quả **bit-for-bit giống V1 ≡ paper** (INV-I).
-2. **Sai số kiểm soát được:** mọi transaction ngoài cửa sổ có tổng đóng góp `< ε` ⇒ `|DO_win − DO_full| ≤ ε` (INV-G).
+1. **Bất biến bảo toàn:** `minOcc = 0` ⇒ mọi phiên bản cho kết quả **bit-for-bit giống V1 ≡ paper** (INV-I).
+2. **Sai số kiểm soát được:** mọi transaction ngoài cửa sổ có tổng đóng góp `< minOcc` ⇒ `|DO_win − DO_full| ≤ minOcc` (INV-G).
 3. **Trần DO:** vì `|X| ≤ |T|` nên `DO(X) ≤ Z(f,TL) = (1−f^TL)/(1−f)`. Nếu `minSup > Z(f,TL)` ⇒ kết quả **chắc chắn rỗng** ⇒ short-circuit O(1). Đây là câu trả lời cho việc benchmark mất 87–300 s mới ra 0 pattern.
 
 ## Cấu trúc repo
@@ -37,7 +37,7 @@ JVNC/
 │   ├── srs/            DHOPM-SRS (SRS tổng thể), DHOPM-UI-LAYOUT (bố cục UI)
 │   ├── phases/         P1-G1.md ✅ · P2-G2.md 🕔 · (G3+ tạo dần)
 │   ├── root/           mốc: paper + bảng chạy tay TC1–TC8
-│   └── reports/        báo cáo G1, báo cáo đo ε (G2)
+│   └── reports/        báo cáo G1, báo cáo đo minOcc (G2)
 ├── dataset/            10 dataset FIMI + default.dat (demo 8 giao dịch) + zip/ (bản nén)
 ├── implementation/     Maven multi-module (Java 25)
 │   ├── pom.xml           parent
@@ -96,9 +96,9 @@ Golden cases lấy từ bảng chạy tay `docs/root/Nhom01_VDChayTay.md` (Phầ
 | TC7 | 0.9, 0.15 (10 TID tùy chỉnh) | 9 DOP |
 | TC8 | 0.9, 0.30 (1 item/TID) | 1 DOP: A=2.4661 |
 
-**TC9–TC18** kiểm tra ngữ nghĩa cửa sổ (sẽ thêm ở G2). Bảng tra cứu nhanh `W(f,ε)`:
+**TC9–TC18** kiểm tra ngữ nghĩa cửa sổ (sẽ thêm ở G2). Bảng tra cứu nhanh `W(f,minOcc)`:
 
-| f \ ε | 1e-3 | 1e-6 | 1e-9 | 1e-12 |
+| f \ minOcc | 1e-3 | 1e-6 | 1e-9 | 1e-12 |
 |---|---|---|---|---|
 | 0.5 | 11 | 21 | 31 | 41 |
 | 0.8 | 39 | 70 | 101 | 132 |
@@ -116,7 +116,7 @@ Engine mới chỉ cần implement `dhopm.common.contract.Engine` rồi gọi `G
 | accidents.dat | 340.183 | 468 | 33.81 | 3% | **dataset của paper [1]** |
 | chainstore.dat | 1.112.949 | 46.086 | 7.23 | 0.05% | **lớn nhất** — scalability 200K→1.1M |
 | chess.dat | 3.196 | 75 | 37.0 | 35% | |
-| connect.dat | 67.557 | 129 | 43.0 | 30% | `∂` nằm **ngoài** miền khả thi khi dùng ε |
+| connect.dat | 67.557 | 129 | 43.0 | 30% | `∂` nằm **ngoài** miền khả thi khi dùng minOcc |
 | kosarak.dat | 990.002 | 41.270 | 8.1 | 0.05% | scalability 200K→990K |
 | mushroom.dat | 8.124 | 119 | 23.0 | 6% | |
 | newMushroom.dat | 8.416 | 119 | 23.0 | 6% | ⚠️ **khác `mushroom.dat`** — không so trực tiếp |
@@ -132,7 +132,7 @@ Thêm `default.dat`: 8 giao dịch demo (A–G), dùng cho TC1–TC6 / kiểm th
 
 > 📦 **`dataset/zip/`** chứa bản nén của cả 11 file `.dat`. `--dataset` nhận trực tiếp đường dẫn `.zip` và giải nén khi đọc (không ghi tạm ra đĩa). Extension hợp lệ: `.dat`/`.txt`/`.text`/`.csv`/`.tsv`/`.zip` — **không nhận `.rar`/`.7z`**.
 
-> ⚠️ **Cảnh báo về `∂` của paper.** Với `f=0.9`, `ε=1e-6` ⇒ `W=153` và trần `Z(f,TL)=10`. Do đó `minSup = ∂ × 153`: `∂=6%` ⇒ `minSup=9.18` (gần trần, rất ít pattern), còn `∂=30–50%` ⇒ **bất khả thi, kết quả chắc chắn rỗng**. Chi tiết: `docs/plans/00-OVERALL-PLAN.md` §6.4.
+> ⚠️ **Cảnh báo về `∂` của paper.** Với `f=0.9`, `minOcc=1e-6` ⇒ `W=153` và trần `Z(f,TL)=10`. Do đó `minSup = ∂ × 153`: `∂=6%` ⇒ `minSup=9.18` (gần trần, rất ít pattern), còn `∂=30–50%` ⇒ **bất khả thi, kết quả chắc chắn rỗng**. Chi tiết: `docs/plans/00-OVERALL-PLAN.md` §6.4.
 
 ## Tiến độ
 
@@ -140,8 +140,8 @@ Thêm `default.dat`: 8 giao dịch demo (A–G), dùng cho TC1–TC6 / kiểm th
 |---|---|---|
 | **C0** | Planning — plans, SRS, UI layout, `DECISIONS.md` | ✅ |
 | **G0** | Khởi động — Maven structure, `dhopm-common`, TestKit TC1–TC8, validate dataset | ✅ |
-| **G1** | **V1 Standard** (oracle, `ε=0`) | ✅ **`docs/phases/P1-G1.md`** |
-| **G2** | **V2 Epsilon/Window** | 🕔 **`docs/phases/P2-G2.md`** |
+| **G1** | **V1 Standard** (oracle, `minOcc=0`) | ✅ **`docs/phases/P1-G1.md`** |
+| **G2** | **V2 MinOcc/Window** | ✅ **`docs/phases/P2-G2.md`** + `docs/reports/G2-V2-MINOCC-BAOCAO.md` |
 | G3 | V3 Optimized | 🕓 Chưa lập plan |
 | G4 | Debug/Compare App (UI module) | 🕓 Chưa lập plan — **chỉ bắt đầu sau G2** |
 | G5 | Manager CLI/API (JSONL) | 🕓 |

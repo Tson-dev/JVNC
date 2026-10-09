@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.jvnc.dhopm</groupId>
+        <artifactId>dhopm-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>dhopm-v2-minocc</artifactId>
+    <name>DHOPM V2 MinOcc / Window</name>
+    <description>
+        Version 2: the damped window minOcc (source idea: docs/Draft Idea.txt). Adds the window formula
+        W(f,minOcc), two-phase minSup = ∂×N_eff (N_eff = min(TL,W)), O(1) eviction via a two-level
+        Handle (ref1 → payload), the tighter bound UB'(X) = min(DUBO(X), Z(X)) and a global
+        short-circuit on the DO ceiling Z(f,TL). minOcc = 0 is bit-for-bit identical to V1 (INV-I).
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-v1-standard</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

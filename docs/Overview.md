@@ -26,7 +26,7 @@ Nền tảng lý thuyết bắt nguồn từ **HOP (Hierarchical Occurrence-Patt
 ### Tầng 1 — Mốc gốc (không được sửa)
 - `docs/root/1-s2_0-S095219762600792X-main.md` — **paper**
 - `docs/root/Nhom01_VDChayTay.md` — **bảng chạy tay TC1–TC8**
-- `docs/Draft Idea.txt` — **ý tưởng ε / cửa sổ** của tác giả (chưa có trong paper)
+- `docs/Draft Idea.txt` — **ý tưởng minOcc / cửa sổ** của tác giả (chưa có trong paper)
 
 ### Tầng 2 — Quyết định & kế hoạch
 - **`docs/DECISIONS.md`** ⭐ — sổ quyết định (ADR D1–D41), nguồn chân lý
@@ -48,25 +48,25 @@ Nền tảng lý thuyết bắt nguồn từ **HOP (Hierarchical Occurrence-Patt
 
 | | Tên | Điểm khác biệt | Threading |
 |---|---|---|---|
-| **V1** | Standard | Paper + GoF, `ε = 0`, **oracle** | Level 1 |
-| **V2** | Epsilon / Window | **Cửa sổ ε**, evict O(1), `minSup` 2 pha, trần DO | Level 1 |
+| **V1** | Standard | Paper + GoF, `minOcc = 0`, **oracle** | Level 1 |
+| **V2** | MinOcc / Window | **Cửa sổ minOcc**, evict O(1), `minSup` 2 pha, trần DO | Level 1 |
 | **V3** | Optimized | Bỏ lớp Handle, SoA/primitive, `ForkJoinPool` | Level 2 |
 | **V4** | Extreme | Data-oriented thuần, pipeline 3 pha | Level 3 |
 
 Ưu tiên: **V1 → V2 → V3 → V4**. V2 tách khỏi V3/V4 để khi so sánh, ta biết phần nào do **ngữ nghĩa cửa sổ** và phần nào do **tối ưu hoá**.
 
-## 5. Ý tưởng trung tâm của V2 — cửa sổ ε
+## 5. Ý tưởng trung tâm của V2 — cửa sổ minOcc
 
 ```
-W(f,ε) = ⌈ln(ε(1−f)) / ln f⌉              (ε=0 hoặc f=1 ⇒ W = ∞)
+W(f,minOcc) = ⌈ln(minOcc(1−f)) / ln f⌉              (minOcc=0 hoặc f=1 ⇒ W = ∞)
 N_eff  = min(TL, W)
 minSup = ∂ × N_eff                        (2 pha: TL<W ⇒ ∂×TL ; TL≥W ⇒ ∂×W)
 ```
 
 Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 
-1. **Bảo toàn:** `ε = 0` ⇒ V2/V3/V4 **bit-for-bit ≡ V1** (INV-I).
-2. **Kiểm soát sai số:** tổng đóng góp của transaction ngoài cửa sổ `< ε` ⇒ `|DO_win − DO_full| ≤ ε` (INV-G).
+1. **Bảo toàn:** `minOcc = 0` ⇒ V2/V3/V4 **bit-for-bit ≡ V1** (INV-I).
+2. **Kiểm soát sai số:** tổng đóng góp của transaction ngoài cửa sổ `< minOcc` ⇒ `|DO_win − DO_full| ≤ minOcc` (INV-G).
 3. **Trần DO:** `|X| ≤ |T|` ⇒ `DO(X) ≤ Z(f,TL) = (1−f^TL)/(1−f)`. Nếu `minSup > Z(f,TL)` ⇒ **kết quả chắc chắn rỗng** ⇒ short-circuit O(1).
 
 Điểm 3 giải quyết trực tiếp vấn đề quan sát được ở G1: `retail.dat` chạy **87 s**, `mushroom.dat` chạy **301 s** để kết luận "0 pattern" — trong khi một phép so sánh đã đủ để biết trước.
@@ -78,7 +78,7 @@ Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 | C0 Planning | ✅ |
 | G0 Khởi động | ✅ |
 | **G1 V1 Standard** | ✅ **Xong** — 56 test xanh, đóng băng làm oracle |
-| **G2 V2 Epsilon/Window** | 🕔 **Đang tiếp theo** — plan tại `docs/phases/P2-G2.md` |
+| **G2 V2 MinOcc/Window** | 🕔 **Đang tiếp theo** — plan tại `docs/phases/P2-G2.md` |
 | G3–G7 | 🕓 |
 
 ## 7. Bản đồ nhanh "muốn biết gì thì đọc gì"
@@ -88,7 +88,7 @@ Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 | Thuật toán chính xác làm gì | `plans/00-OVERALL-PLAN.md` §2 |
 | Công thức cửa sổ + bảng tra cứu | `plans/00-OVERALL-PLAN.md` §2.3.1 |
 | Cấu trúc class/hàm của V1 | `plans/01-STANDARD-VERSION-PLAN.md` |
-| Thiết kế V2 chi tiết + test | `plans/02-EPSILON-WINDOW-VERSION-PLAN.md` |
+| Thiết kế V2 chi tiết + test | `plans/02-MINOCC-WINDOW-VERSION-PLAN.md` |
 | Làm sao chạy code | `README.md` |
 | Test hiện có | `README.md` §TestKit |
 | Vì sao chọn kiến trúc này | `DECISIONS.md` |
