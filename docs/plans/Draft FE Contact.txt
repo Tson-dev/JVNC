@@ -1,0 +1,15 @@
+File này chứa nội dung về việc đổi một số ý dựa vào chỉ file 08-FE-Contract.md
+File này là tạm thời, sẽ không được ref hoặc ghi lại trong các tài liệu và sẽ được xóa khi hết giá trị.
+
+1.
+FE và BE phải có rằng buộc về chạy độc lập và chạy remote.
+tức cơ bản FE và BE là 2 module khác nhau, để thống nhất thì sẽ dùng cổng localhost:7079, khi nào flow như sau.
+FE và BE được khởi động độc lập -> BE sẽ mở để chờ connect request từ FE (một rằng buộc phía BE) -> FE sẽ tồn tại button về detect BE dựa vào cổng 7079
+-> user nhất vào nút, kích hoạt và FE sẽ đi tìm cổng 7079 trên localhost của FE, sau đó:
+- nếu không có trong localhost thì mới tìm trong LAN -> nếu tìm thấy thì gửi connect request tới BE và chờ phản hồi phía BE -> nhận phản hồi và lưu lại địa chỉ, chính thức kết nối
+- Nếu trong localhost và LAN không tìm thấy (không thiết bị nào mở cổng 7079 hoặc cổng 7079 của thiết bị phản hồi không đúng với Contract) -> Không tìm thấy BE -> tạo thông báo lên FE.
+
+2.
+
+BE phải cho FE lấy dữ liệu của, tức giả sử sau khi mining và lưu trong /mine/mine001.txt thì BE phải có lệnh để giúp FE lấy mine001.txt
+đồng thời phải tạo rằng buộc với FE, là nếu FE chọn mining có lưu log (isLog trong BE CLI config) thì sau khi mining xong FE cũng phải có lưu một bản txt (nhằm không phụ thuộc vào BE).

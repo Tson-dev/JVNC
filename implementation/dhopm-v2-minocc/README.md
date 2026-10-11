@@ -26,6 +26,16 @@ dhopm.v2
 cmd /c run.bat -q                                     :: biên dịch + test toàn bộ reactor
 ```
 
+## Chạy tay độc lập (không qua bench)
+
+CLI V2 chạy trực tiếp như V1. Classpath cần `dhopm-common` + `dhopm-v1-standard` + `dhopm-v2-minocc`
+(V2 phụ thuộc V1 nên phải có mặt trên classpath):
+
+```bat
+java -cp "implementation\dhopm-common\target\classes;implementation\dhopm-v1-standard\target\classes;implementation\dhopm-v2-minocc\target\classes" ^
+     dhopm.v2.cli.Main mine --dataset dataset\default.dat --partial 0.15 --f 0.9 --minOcc 0.000001 --parts 2
+```
+
 ## Bộ lệnh CLI (plan 02 §7 — kế thừa 5 lệnh chuẩn G1 + 3 lệnh cửa sổ mới)
 
 | Lệnh | Mục đích | Ví dụ |

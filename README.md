@@ -5,8 +5,8 @@ Dự án triển khai và nghiên cứu thuật toán khai thác **DOP (Damped O
 | Phiên bản | Tên | Module | Threading | Trạng thái |
 |---|---|---|---|---|
 | **V1** | Standard (GoF, **oracle**) | `dhopm-v1-standard` | Level 1 | ✅ **Xong (G1)** — đóng băng |
-| **V2** | **MinOcc / Window** | `dhopm-v2-minocc` | Level 1 | ✅ **Xong (G2, early-access)** |
-| **V3** | Optimized | `dhopm-v3-optimized` | Level 2 (ForkJoinPool) | 🕓 Chưa code |
+| **V2** | **MinOcc / Window** | `dhopm-v2-minocc` | Level 1 | ✅ **Xong (G2)** — 18 test |
+| **V3** | Optimized | `dhopm-v3-optimized` | Level 2 (ForkJoinPool) | ✅ **Xong (G3)** — 16 test; `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
 | **V4** | Extreme | `dhopm-v4-extreme` | Level 3 (data-oriented) | 🕓 Chưa code |
 
 Còn lại: `dhopm-common` (hạ tầng chung + `WindowMath`), `dhopm-bench` (benchmark), `dhopm-app` (debug/compare app + UI, G4).
@@ -35,13 +35,17 @@ JVNC/
 │   ├── DECISIONS.md    ⭐ sổ quyết định (ADR) — nguồn chân lý
 │   ├── plans/          00-OVERALL-PLAN, 01–04 theo phiên bản, 05 CLI/API, 06 draft analysis
 │   ├── srs/            DHOPM-SRS (SRS tổng thể), DHOPM-UI-LAYOUT (bố cục UI)
-│   ├── phases/         P1-G1.md ✅ · P2-G2.md 🕔 · (G3+ tạo dần)
+│   ├── phases/         P1-G1.md ✅ · P2-G2.md ✅ · P3-G3.md ✅
 │   ├── root/           mốc: paper + bảng chạy tay TC1–TC8
-│   └── reports/        báo cáo G1, báo cáo đo minOcc (G2)
+│   └── reports/        G1 · G2 · G3 · SYNTHESIS (lỗi thời) · V1-V2-V3-OPTIMIZATION-COMPARISON
 ├── dataset/            10 dataset FIMI + default.dat (demo 8 giao dịch) + zip/ (bản nén)
 ├── implementation/     Maven multi-module (Java 25)
 │   ├── pom.xml           parent
-│   └── dhopm-common/     io · config · contract · util · TestKit (TC1–TC18)
+│   ├── dhopm-common/     io · config · contract · util · TestKit (55 test)
+│   ├── dhopm-v1-standard/   V1 oracle (32 test) + CLI 5 lệnh
+│   ├── dhopm-v2-minocc/     V2 cửa sổ minOcc (18 test) + CLI 10 lệnh
+│   ├── dhopm-v3-optimized/  V3 tối ưu — 16 test, build xanh
+│   └── dhopm-bench/         benchmark harness (V1/V2/V3)
 ├── run.bat           chạy test một lệnh (Windows)
 └── README.md
 ```
@@ -60,6 +64,8 @@ run.bat
 ```
 
 Không cần chạy từng lệnh — script tự set `JAVA_HOME` rồi chạy toàn bộ test (`mvn test`).
+
+> ✅ **Trạng thái:** toàn reactor **121 test xanh** (55 common + 32 V1 + 18 V2 + 16 V3).
 
 Tùy chọn truyền goal cho Maven (mặc định là `test`):
 
@@ -96,7 +102,7 @@ Golden cases lấy từ bảng chạy tay `docs/root/Nhom01_VDChayTay.md` (Phầ
 | TC7 | 0.9, 0.15 (10 TID tùy chỉnh) | 9 DOP |
 | TC8 | 0.9, 0.30 (1 item/TID) | 1 DOP: A=2.4661 |
 
-**TC9–TC18** kiểm tra ngữ nghĩa cửa sổ (sẽ thêm ở G2). Bảng tra cứu nhanh `W(f,minOcc)`:
+**TC9–TC18** kiểm tra ngữ nghĩa cửa sổ (✅ đã thêm ở G2 — 18 test V2 xanh; ✅ V3 có thêm 16 test invariance/window). Bảng tra cứu nhanh `W(f,minOcc)`:
 
 | f \ minOcc | 1e-3 | 1e-6 | 1e-9 | 1e-12 |
 |---|---|---|---|---|
@@ -142,8 +148,8 @@ Thêm `default.dat`: 8 giao dịch demo (A–G), dùng cho TC1–TC6 / kiểm th
 | **G0** | Khởi động — Maven structure, `dhopm-common`, TestKit TC1–TC8, validate dataset | ✅ |
 | **G1** | **V1 Standard** (oracle, `minOcc=0`) | ✅ **`docs/phases/P1-G1.md`** |
 | **G2** | **V2 MinOcc/Window** | ✅ **`docs/phases/P2-G2.md`** + `docs/reports/G2-V2-MINOCC-BAOCAO.md` |
-| G3 | V3 Optimized | 🕓 Chưa lập plan |
-| G4 | Debug/Compare App (UI module) | 🕓 Chưa lập plan — **chỉ bắt đầu sau G2** |
+| G3 | V3 Optimized | ✅ **Xong** — `docs/reports/G3-V3-OPTIMIZED-BAOCAO.md`; 16 test, `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
+| G4 | Debug/Compare App (UI module) | 🕓 Chưa lập plan |
 | G5 | Manager CLI/API (JSONL) | 🕓 |
 | G7 | Utility-FIMI reader (planned, D42) | 🕓 |
 

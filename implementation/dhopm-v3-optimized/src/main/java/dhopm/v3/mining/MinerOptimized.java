@@ -2,217 +2,169 @@ package dhopm.v3.mining;
 
 import dhopm.common.contract.MiningProgress;
 import dhopm.common.contract.MiningProgressListener;
-import dhopm.common.contract.Phase;
-import dhopm.common.contract.PhaseListener;
-import dhopm.common.util.TimingRecorder;
 import dhopm.v3.dho.DHONodeOptimized;
-import dhopm.v3.metrics.ZCalculator;
 import dhopm.v3.window.DecayLookup;
 import dhopm.v3.window.WindowBufferOptimized;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.RecursiveTask;
 
 /**
- * Optimized Miner (GĐ3) with Level 2 threading.
- * - ForkJoinPool for work stealing
- * - One task per root node
- * - Subtree splitting: if conditional list size > threshold, split recursively
- * - Short-circuit: minSup > Z + epsilonCmp ⇒ ∅
- * - Deterministic: results merged in canonical order (C6)
- * - Uses shared thread-safe list for pattern collection
+ * GĐ3: DFS pattern-growth over the sorted global list (canonical 2.2). Per node, in list order:
+ * <ol>
+ *   <li>support &lt; minSup → skip entirely (C2);
+ *   <li>{@code DO ≥ minSup − ε} → emit {@code prefix ∪ {item_i}} (C4);
+ *   <li>{@code min(DUBO, Z) < minSup − ε} → prune (no expansion);
+ *   <li>else build the conditional list by intersecting with every following support-meeting node.
+ * </ol>
+ *
+ * <p>Level 2: when a conditional list reaches {@value #FORK_THRESHOLD} nodes the recursion forks
+ * independent subtree tasks through the engine's ForkJoinPool (work-stealing); results are merged
+ * after join in index order, so the output is deterministic for any pool size (INV-E).
  */
 public final class MinerOptimized {
 
-    private final WindowBufferOptimized window;
+    private static final int FORK_THRESHOLD = 16;
+
     private final DecayLookup decayLookup;
     private final int tl;
-    private final double f;
     private final double minSup;
-    private final double epsilonCmp;
+    private final double epsilon;
     private final ForkJoinPool pool;
-    private final PhaseListener phaseListener;
-    private final MiningProgressListener progressListener;
+    private final boolean canFork;
+    private int lastRootTasks;
 
-    // Results - thread-safe for parallel collection
-    private final List<PatternResult> patterns = new CopyOnWriteArrayList<>();
-    private boolean windowTruncated = false;
-    private int miningTasks = 0;
-
-    // Subtree splitting threshold
-    private static final int MIN_SUBTREE_SIZE = 8;
-
-    public MinerOptimized(WindowBufferOptimized window, DecayLookup decayLookup, int tl, double f,
-                          double minSup, double epsilonCmp, ForkJoinPool pool,
-                          PhaseListener phaseListener, MiningProgressListener progressListener) {
-        this.window = window;
+    public MinerOptimized(DecayLookup decayLookup, int tl, double minSup, double epsilon, ForkJoinPool pool) {
         this.decayLookup = decayLookup;
         this.tl = tl;
-        this.f = f;
         this.minSup = minSup;
-        this.epsilonCmp = epsilonCmp;
+        this.epsilon = epsilon;
         this.pool = pool;
-        this.phaseListener = phaseListener;
-        this.progressListener = progressListener;
+        this.canFork = pool.getParallelism() > 1;
     }
 
-    /**
-     * Runs mining on the given sorted nodes.
-     * @return list of patterns found (itemIds + DO)
-     */
-    public List<PatternResult> mine(List<DHONodeOptimized> sortedNodes, List<DuboBound> duboBounds) {
-        TimingRecorder.Record rec = phaseListener != null ? new TimingRecorder.Record(Phase.MINING) : null;
-
-        // Short-circuit: minSup > Z(f, TL) + epsilonCmp ⇒ ∅
-        double z = ZCalculator.compute(f, tl);
-        if (minSup > z + epsilonCmp) {
-            if (rec != null) {
-                rec.end();
-                phaseListener.onPhase(Phase.MINING, rec.startNanos, rec.endNanos);
+    /** Mines the subtrees rooted at every support-meeting node of the sorted global list. */
+    public List<PatternResult> mine(List<DHONodeOptimized> sortedNodes, MiningProgressListener progressListener) {
+        List<SubtreeTask> roots = new ArrayList<>();
+        for (int i = 0; i < sortedNodes.size(); i++) {
+            if (sortedNodes.get(i).support() >= minSup) {
+                roots.add(new SubtreeTask(sortedNodes, i, new int[0]));
             }
-            windowTruncated = true;
+        }
+        lastRootTasks = roots.size();
+        if (roots.isEmpty()) {
             return List.of();
         }
 
-        // Check if window is active
-        windowTruncated = (minSup != minSup * tl / Math.min(tl, window.windowSize));
-
-        // Prepare root tasks
-        List<MiningTask> tasks = new ArrayList<>();
-        for (int i = 0; i < sortedNodes.size(); i++) {
-            DHONodeOptimized node = sortedNodes.get(i);
-            if (node.support(window) >= minSup) {
-                DuboBound bound = duboBounds.get(i);
-                tasks.add(new MiningTask(node, bound, new int[]{node.itemId}, node.doValue, sortedNodes, i + 1));
-            }
-        }
-        miningTasks = tasks.size();
-
-        // Execute root tasks
-        if (progressListener != null && !tasks.isEmpty()) {
-            List<java.util.concurrent.ForkJoinTask<Void>> fjTasks = new ArrayList<>();
-            for (MiningTask task : tasks) {
-                fjTasks.add(pool.submit(task));
-            }
-            int completed = 0;
-            for (java.util.concurrent.ForkJoinTask<Void> fjTask : fjTasks) {
-                fjTask.join();
-                completed++;
-                progressListener.onProgress(new MiningProgress(completed, tasks.size(), patterns.size(), 0));
-            }
-        } else {
-            pool.invokeAll(tasks);
+        for (SubtreeTask task : roots) {
+            pool.submit(task);
         }
 
-        // Sort results by canonical key (C6)
-        patterns.sort(Comparator.comparing(PatternResult::canonicalKey));
-
-        if (rec != null) {
-            rec.end();
-            phaseListener.onPhase(Phase.MINING, rec.startNanos, rec.endNanos);
+        List<PatternResult> all = new ArrayList<>();
+        int completed = 0;
+        long m0 = progressListener != null ? System.nanoTime() : 0L;
+        for (SubtreeTask task : roots) {
+            all.addAll(task.join());
+            completed++;
+            if (progressListener != null) {
+                progressListener.onProgress(new MiningProgress(
+                        completed, roots.size(), all.size(), (System.nanoTime() - m0) / 1_000_000L));
+            }
         }
-        return new ArrayList<>(patterns);
+        return all;
     }
 
     public int getMiningTasks() {
-        return miningTasks;
+        return lastRootTasks;
     }
 
-    public boolean isWindowTruncated() {
-        return windowTruncated;
-    }
+    /** Subtree rooted at {@code list.get(start)}; {@code prefix} = item IDs of the current prefix. */
+    private final class SubtreeTask extends RecursiveTask<List<PatternResult>> {
+        private final List<DHONodeOptimized> list;
+        private final int start;
+        private final int[] prefix;
 
-    /** Task for mining a single root node (and its conditional subtrees recursively). */
-    private final class MiningTask extends RecursiveAction {
-        private final DHONodeOptimized node;
-        private final DuboBound bound;
-        private final int[] prefixItemIds;
-        private final double prefixDO;
-        private final List<DHONodeOptimized> allNodes;
-        private final int startIndex;
-
-        MiningTask(DHONodeOptimized node, DuboBound bound, int[] prefixItemIds, double prefixDO,
-                   List<DHONodeOptimized> allNodes, int startIndex) {
-            this.node = node;
-            this.bound = bound;
-            this.prefixItemIds = prefixItemIds;
-            this.prefixDO = prefixDO;
-            this.allNodes = allNodes;
-            this.startIndex = startIndex;
+        SubtreeTask(List<DHONodeOptimized> list, int start, int[] prefix) {
+            this.list = list;
+            this.start = start;
+            this.prefix = prefix;
         }
 
         @Override
-        protected void compute() {
-            // C4: emit prefix as pattern if it meets minSup
-            if (prefixDO >= minSup - epsilonCmp) {
-                patterns.add(new PatternResult(prefixItemIds, prefixDO));
+        protected List<PatternResult> compute() {
+            DHONodeOptimized node = list.get(start);
+            if (node.support() < minSup) {
+                return List.of(); // C2
             }
-
-            // Prune: if effective bound < minSup, stop
-            if (bound.belowMinSup(minSup, epsilonCmp)) {
-                return;
+            List<PatternResult> results = new ArrayList<>();
+            int[] candidate = append(prefix, node.itemId);
+            if (node.doValue() >= minSup - epsilon) { // C4
+                results.add(new PatternResult(candidate, node.doValue()));
             }
-
-            // Build conditional list for partners after this node
-            ConditionalListBuilderOptimized builder = new ConditionalListBuilderOptimized(window, tl, f, decayLookup);
-
-            List<DHONodeOptimized> partners = new ArrayList<>();
-            for (int i = startIndex; i < allNodes.size(); i++) {
-                DHONodeOptimized partner = allNodes.get(i);
-                if (partner.support(window) >= minSup) {
-                    partners.add(partner);
+            if (DuboBound.compute(node, decayLookup, tl).belowMinSup(minSup, epsilon)) {
+                return results; // prune: no expansion
+            }
+            List<DHONodeOptimized> cond = buildConditional(node, start + 1, candidate.length + 1);
+            if (cond.isEmpty()) {
+                return results;
+            }
+            if (canFork && cond.size() >= FORK_THRESHOLD) {
+                List<SubtreeTask> subs = new ArrayList<>(cond.size());
+                for (int k = 0; k < cond.size(); k++) {
+                    subs.add(new SubtreeTask(cond, k, candidate));
                 }
-            }
-
-            List<ConditionalListBuilderOptimized.ConditionalNode> condNodes = builder.build(node, partners, minSup, epsilonCmp);
-
-            if (condNodes.isEmpty()) {
-                return;
-            }
-
-            // If many conditional nodes, split into subtasks
-            if (condNodes.size() > MIN_SUBTREE_SIZE) {
-                List<MiningTask> subtasks = new ArrayList<>();
-                for (ConditionalListBuilderOptimized.ConditionalNode cn : condNodes) {
-                    int[] newPrefix = new int[prefixItemIds.length + 1];
-                    System.arraycopy(prefixItemIds, 0, newPrefix, 0, prefixItemIds.length);
-                    newPrefix[prefixItemIds.length] = cn.partnerItemId;
-                    DuboBound condBound = new DuboBound(cn.node.doValue, ZCalculator.compute(f, tl));
-                    subtasks.add(new MiningTask(cn.node, condBound, newPrefix, cn.doValue, allNodes, allNodes.size()));
+                for (SubtreeTask sub : subs) {
+                    sub.fork();
                 }
-                ForkJoinTask.invokeAll(subtasks);
+                for (SubtreeTask sub : subs) {
+                    results.addAll(sub.join());
+                }
             } else {
-                // Sequential for small subtrees
-                for (ConditionalListBuilderOptimized.ConditionalNode cn : condNodes) {
-                    int[] newPrefix = new int[prefixItemIds.length + 1];
-                    System.arraycopy(prefixItemIds, 0, newPrefix, 0, prefixItemIds.length);
-                    newPrefix[prefixItemIds.length] = cn.partnerItemId;
-                    DuboBound condBound = new DuboBound(cn.node.doValue, ZCalculator.compute(f, tl));
-                    new MiningTask(cn.node, condBound, newPrefix, cn.doValue, allNodes, allNodes.size()).compute();
+                for (int k = 0; k < cond.size(); k++) {
+                    results.addAll(new SubtreeTask(cond, k, candidate).compute());
                 }
             }
+            return results;
+        }
+
+        private List<DHONodeOptimized> buildConditional(DHONodeOptimized node, int fromIndex, int nextPatternLen) {
+            List<DHONodeOptimized> cond = new ArrayList<>();
+            for (int j = fromIndex; j < list.size(); j++) {
+                DHONodeOptimized partner = list.get(j);
+                if (partner.support() < minSup) {
+                    continue;
+                }
+                DHONodeOptimized combined = ConditionalListBuilderOptimized.intersect(
+                        node, partner, nextPatternLen, decayLookup, tl);
+                if (combined.size() > 0) {
+                    cond.add(combined);
+                }
+            }
+            return cond;
         }
     }
 
-    /** Pattern result with item IDs and DO. */
-    public static final class PatternResult {
-        public final int[] itemIds;
-        public final double doValue;
+    private static int[] append(int[] prefix, int itemId) {
+        int[] out = Arrays.copyOf(prefix, prefix.length + 1);
+        out[prefix.length] = itemId;
+        return out;
+    }
 
-        public PatternResult(int[] itemIds, double doValue) {
-            this.itemIds = itemIds;
-            this.doValue = doValue;
-        }
+    /** A mined pattern: item IDs in DFS order + its DO. */
+    public record PatternResult(int[] itemIds, double doValue) {
 
         public String canonicalKey() {
+            int[] sorted = itemIds.clone();
+            Arrays.sort(sorted);
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < itemIds.length; i++) {
-                if (i > 0) sb.append(',');
-                sb.append(itemIds[i]);
+            for (int i = 0; i < sorted.length; i++) {
+                if (i > 0) {
+                    sb.append(',');
+                }
+                sb.append(sorted[i]);
             }
             return sb.toString();
         }

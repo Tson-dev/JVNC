@@ -17,11 +17,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Benchmark driver for V1 (paper) and V2 (damped window minOcc) engines (OVERALL-PLAN 5.2/5.4, G2 ablation):
- * incremental load in {@code parts}, one {@code mineNow} per part, per-stage timings, CSV output.
+ * Benchmark driver for V1 (paper), V2 (damped window minOcc) and V3 (optimized) engines
+ * (OVERALL-PLAN 5.2/5.4, G2 ablation): incremental load in {@code parts}, one {@code mineNow}
+ * per part, per-stage timings, CSV output.
  *
  * <pre>
- *   --dataset &lt;fimi file&gt;   --engine v1|v2 (default v1)   --minOcc &lt;window minOcc; default 1e-6 for v2&gt;
+ *   --dataset &lt;fimi file&gt;   --engine v1|v2|v3 (default v1)   --minOcc &lt;window minOcc; default 1e-6 for v2/v3&gt;
  *   --epsilon &lt;numeric tolerance; default 1e-9&gt;
  *   --partial &lt;∂; default 0.15&gt;   --f &lt;decay; default 0.9&gt;   --workers &lt;threads; default CPU&gt;
  *   --parts  &lt;chunks; default 5&gt;   --limit &lt;first n transactions; 0=all&gt;
@@ -58,13 +59,13 @@ public final class BenchmarkMain {
             }
         }
         if (dataset == null || parts < 1 || limit < 0) {
-            System.err.println("usage: --dataset <file> [--engine v1|v2] [--minOcc minOcc]"
+            System.err.println("usage: --dataset <file> [--engine v1|v2|v3] [--minOcc minOcc]"
                     + " [--epsilon tol] [--partial ∂] [--f f] [--workers n] [--parts n] [--limit n]");
             System.exit(2);
         }
 
-        if (!engineId.equals("v1") && !engineId.equals("v2")) {
-            System.err.println("unknown engine: " + engineId + " (use v1|v2)");
+        if (!engineId.equals("v1") && !engineId.equals("v2") && !engineId.equals("v3")) {
+            System.err.println("unknown engine: " + engineId + " (use v1|v2|v3)");
             System.exit(2);
         }
 
@@ -74,13 +75,13 @@ public final class BenchmarkMain {
             throw new IllegalArgumentException("empty dataset: " + path);
         }
 
-        MiningConfig config = engineId.equals("v2")
-                ? new MiningConfig(partial, f, epsilon, minOcc, workers)
-                : new MiningConfig(partial, f, epsilon, 0.0, workers);
+        MiningConfig config = engineId.equals("v1")
+                ? new MiningConfig(partial, f, epsilon, 0.0, workers)
+                : new MiningConfig(partial, f, epsilon, minOcc, workers);
         TimingRecorder rec = new TimingRecorder();
         int per = Math.max(1, (int) Math.ceil(all.size() / (double) parts));
 
-        System.out.println("engine=" + engineId + (engineId.equals("v2") ? ",minOcc," + minOcc : "")
+        System.out.println("engine=" + engineId + (!engineId.equals("v1") ? ",minOcc," + minOcc : "")
                 + ",database," + path.getFileName() + ",tx," + all.size()
                 + (limit > 0 ? ",limit," + limit : "")
                 + ",partial," + partial + ",f," + f + ",workers," + workers);
@@ -105,6 +106,9 @@ public final class BenchmarkMain {
     private static dhopm.common.contract.PhaseAwareEngine newEngine(MiningConfig config, String engineId) {
         if (engineId.equals("v2")) {
             return new MiningEngineV2(config);
+        }
+        if (engineId.equals("v3")) {
+            return new dhopm.v3.engine.MiningEngineV3(config);
         }
         return new MiningEngine(config);
     }

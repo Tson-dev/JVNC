@@ -1,23 +1,21 @@
 package dhopm.v3.dho;
 
-import dhopm.v3.window.WindowBufferOptimized;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Optimized DHO-List: growable array of nodes indexed by itemId.
- * Replaces V2 LinkedHashMap<Item, DHONode>.
- * - nodes[itemId] = DHONodeOptimized (null if item not seen)
- * - creationOrder: list of itemIds in order of first appearance (for stable sort C3)
+ * DHO-List: growable array of nodes indexed by {@code itemId} plus the creation order (first
+ * appearance of each item) used for the stable sort (C3) and deterministic iteration.
  */
 public final class DHOListOptimized {
 
     private DHONodeOptimized[] nodes = new DHONodeOptimized[64];
-    private final java.util.ArrayList<Integer> creationOrder = new java.util.ArrayList<>();
+    private final List<Integer> creationOrder = new ArrayList<>();
 
-    /** Gets or creates a node for the given itemId. */
+    /** Gets or creates a node for the given itemId (creation order = first-appearance order). */
     public DHONodeOptimized getOrCreateNode(int itemId) {
         if (itemId >= nodes.length) {
-            int newLen = Math.max(nodes.length * 2, itemId + 1);
-            nodes = java.util.Arrays.copyOf(nodes, newLen);
+            nodes = java.util.Arrays.copyOf(nodes, Math.max(nodes.length * 2, itemId + 1));
         }
         DHONodeOptimized node = nodes[itemId];
         if (node == null) {
@@ -33,32 +31,17 @@ public final class DHOListOptimized {
         return (itemId >= 0 && itemId < nodes.length) ? nodes[itemId] : null;
     }
 
-    /** Returns nodes in creation order (for stable sort by support C3). */
-    public Iterable<DHONodeOptimized> nodesInCreationOrder() {
-        return () -> new java.util.Iterator<>() {
-            int idx = 0;
-            public boolean hasNext() { return idx < creationOrder.size(); }
-            public DHONodeOptimized next() { return nodes[creationOrder.get(idx++)]; }
-        };
+    /** Snapshot of all nodes in creation order (for the reconstructor / stats). */
+    public List<DHONodeOptimized> nodesList() {
+        List<DHONodeOptimized> out = new ArrayList<>(creationOrder.size());
+        for (int id : creationOrder) {
+            out.add(nodes[id]);
+        }
+        return out;
     }
 
     /** Total number of nodes created. */
     public int nodeCount() {
         return creationOrder.size();
-    }
-
-    /** Discards dead prefix for all nodes (call before reconstruction). */
-    public void discardAllDeadPrefixes(WindowBufferOptimized window) {
-        for (int itemId : creationOrder) {
-            nodes[itemId].discardDeadPrefix(window);
-        }
-    }
-
-    /** Resets all nodes for reuse across datasets. */
-    public void reset() {
-        for (int itemId : creationOrder) {
-            nodes[itemId].reset();
-        }
-        creationOrder.clear();
     }
 }

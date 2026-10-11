@@ -1,10 +1,8 @@
 package dhopm.v3.engine;
 
 import dhopm.common.config.MiningConfig;
-import dhopm.common.contract.Engine;
-import dhopm.common.contract.MiningProgress;
-import dhopm.common.contract.MiningProgressListener;
 import dhopm.common.contract.MineResult;
+import dhopm.common.contract.MiningProgressListener;
 import dhopm.common.contract.Pattern;
 import dhopm.common.contract.Phase;
 import dhopm.common.contract.PhaseAwareEngine;
@@ -12,74 +10,90 @@ import dhopm.common.contract.PhaseListener;
 import dhopm.common.contract.ProgressAwareEngine;
 import dhopm.common.contract.WindowAwareEngine;
 import dhopm.common.contract.WindowListener;
-import dhopm.common.util.TimingRecorder;
-import dhopm.common.util.WorkerPool;
+import dhopm.common.transaction.Transaction;
+import dhopm.common.window.ParameterValidator;
+import dhopm.common.window.WindowInfo;
+import dhopm.common.window.WindowMath;
+import dhopm.common.window.ParameterValidator.Issue;
+import dhopm.common.window.ParameterValidator.Severity;
 import dhopm.v3.construction.DHOListBuilderOptimized;
 import dhopm.v3.dho.DHOListOptimized;
 import dhopm.v3.dho.DHONodeOptimized;
 import dhopm.v3.io.ItemDictionary;
 import dhopm.v3.mining.MinerOptimized;
-import dhopm.v3.mining.DuboBound;
 import dhopm.v3.reconstruction.ReconstructorOptimized;
-import dhopm.v3.metrics.ZCalculator;
 import dhopm.v3.window.DecayLookup;
 import dhopm.v3.window.WindowBufferOptimized;
-import dhopm.common.transaction.Transaction;
-import dhopm.common.window.WindowInfo;
-import dhopm.common.window.WindowMath;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 
 /**
- * V3 Optimized Mining Engine.
- * Implements PhaseAwareEngine + ProgressAwareEngine + WindowAwareEngine + AutoCloseable.
- * Uses ForkJoinPool (Level 2 threading), optimized data structures (SoA, int itemId, no Handle).
+ * V3 engine: same damped-window pipeline as V2 (GĐ0 eviction, two-phase minSup, DO-ceiling
+ * short-circuit, tighter {@code min(DUBO, Z)} prune) but with SoA node storage
+ * ({@code int[] tids / int[] lens} instead of Entry/Handle objects), {@code int} item IDs +
+ * {@link ItemDictionary}, a {@code Math.pow}-backed {@link DecayLookup} table and ForkJoinPool
+ * threading at reconstruction + mining (Level 2).
+ *
+ * <p>Number parity: DO / DUBO / Z are built with the exact V1/V2 formulas so the resulting DOP
+ * set is bit-for-bit identical — use {@code dhopm.common.testkit.GoldenAssert#samePatternSet} to
+ * compare. Paper mode ({@code minOcc=0} or {@code f=1}) equals V1 (INV-I).
  */
 public final class MiningEngineV3 implements PhaseAwareEngine, ProgressAwareEngine, WindowAwareEngine, AutoCloseable {
 
     private final MiningConfig config;
-    private final ForkJoinPool forkJoinPool;
-    private final WorkerPool workerPool;
-
-    private final ItemDictionary dictionary = new ItemDictionary();
+    private final ForkJoinPool pool;
+    private final long windowSize;
+    private final boolean windowTruncated;
     private final WindowBufferOptimized window;
     private final DecayLookup decayLookup;
+    private final ItemDictionary dictionary = new ItemDictionary();
     private final DHOListBuilderOptimized builder;
-    private final TimingRecorder timingRecorder = new TimingRecorder();
+    private final List<Issue> warnings = new ArrayList<>();
+
+    private long totalTransactions;
+    private int tl;
+    private long globalEntries;
+    private int lastMiningTasks;
+    private long evictions;
+    private long liveEntries;
+    private long deadEntries;
+    private boolean closed;
+    private WindowInfo windowInfo = WindowInfo.none();
 
     private PhaseListener phaseListener;
-    private MiningProgressListener progressListener;
+    private MiningProgressListener miningProgressListener;
     private WindowListener windowListener;
 
-    private boolean closed = false;
-    private int totalLoaded = 0;
-    private int lastTid = 0;
-    private int globalNodeCount = 0;
-    private int globalEntryCount = 0;
-    private int lastMiningTasks = 0;
-    private boolean windowTruncated = false;
-    private List<String> warnings = new ArrayList<>();
-
     public MiningEngineV3(MiningConfig config) {
-        this.config = config;
-        this.forkJoinPool = new ForkJoinPool(config.workers());
-        this.workerPool = new WorkerPool(config.workers());
-
-        int windowSize = (config.minOcc() == 0.0 || config.f() == 1.0)
-                ? WindowMath.INFINITE
-                : (int) WindowMath.computeWindow(config.f(), config.minOcc());
+        this.config = Objects.requireNonNull(config, "config");
+        for (Issue issue : ParameterValidator.validate(config)) {
+            if (issue.severity() == Severity.ERROR) {
+                throw new IllegalArgumentException("invalid V3 config: " + issue);
+            }
+            warnings.add(issue);
+        }
+        this.windowSize = WindowMath.computeWindow(config.decayFactor(), config.minOcc());
+        this.windowTruncated = windowSize != WindowMath.INFINITE;
         this.window = new WindowBufferOptimized(windowSize);
-        this.decayLookup = DecayLookup.create(config.f(), windowSize);
-        this.builder = new DHOListBuilderOptimized(config, window, dictionary);
+        this.decayLookup = DecayLookup.create(config.decayFactor(), windowSize);
+        this.builder = new DHOListBuilderOptimized(dictionary);
+        this.pool = new ForkJoinPool(config.workers());
     }
 
-    /** Default config with minOcc = 1e-6 (D41). */
+    /** Library default: {@code minOcc = 1e-6} (D41) — a real (truncating) window. */
     public static MiningEngineV3 defaults(double partial, double f) {
-        MiningConfig config = new MiningConfig(partial, f, MiningConfig.DEFAULT_EPSILON_CMP,
-                MiningConfig.DEFAULT_EPSILON_WINDOW, MiningConfig.DEFAULT_WORKERS);
-        return new MiningEngineV3(config);
+        return new MiningEngineV3(MiningConfig.of(partial, f, MiningConfig.DEFAULT_MIN_OCC));
+    }
+
+    @Override
+    public String name() {
+        return "v3-optimized";
     }
 
     @Override
@@ -89,7 +103,7 @@ public final class MiningEngineV3 implements PhaseAwareEngine, ProgressAwareEngi
 
     @Override
     public void setMiningProgressListener(MiningProgressListener listener) {
-        this.progressListener = listener;
+        this.miningProgressListener = listener;
     }
 
     @Override
@@ -98,135 +112,198 @@ public final class MiningEngineV3 implements PhaseAwareEngine, ProgressAwareEngi
     }
 
     @Override
-    public void loadBatch(List<Transaction> transactions) {
-        if (closed) throw new IllegalStateException("Engine closed");
-        TimingRecorder.Record rec = phaseListener != null ? new TimingRecorder.Record(Phase.CONSTRUCTION) : null;
+    public WindowInfo windowInfo() {
+        return windowInfo;
+    }
 
-        for (Transaction tx : transactions) {
-            int tid = tx.tid();
-            lastTid = tid;
-            totalLoaded++;
+    public MiningConfig config() {
+        return config;
+    }
 
-            // Evict before write (GĐ0)
-            window.evictBeforeWrite(tid);
+    /** Validation warnings (stable codes). */
+    public List<Issue> warnings() {
+        return List.copyOf(warnings);
+    }
 
-            // Skip if outside window (GĐ0 skip-write)
-            if (window.windowSize != WindowMath.INFINITE) {
-                if (tid <= lastTid - window.windowSize) {
-                    continue;
+    public long windowSize() {
+        return windowSize;
+    }
+
+    public int globalNodeCount() {
+        return builder.getDhoList().nodeCount();
+    }
+
+    public long globalEntryCount() {
+        return globalEntries;
+    }
+
+    public long totalLoaded() {
+        return totalTransactions;
+    }
+
+    public int lastTid() {
+        return tl;
+    }
+
+    public int lastMiningTasks() {
+        return lastMiningTasks;
+    }
+
+    public long evictionCount() {
+        return evictions;
+    }
+
+    public long liveEntryCount() {
+        return liveEntries;
+    }
+
+    public long deadEntryCount() {
+        return deadEntries;
+    }
+
+    public ItemDictionary dictionary() {
+        return dictionary;
+    }
+
+    public DHOListOptimized dhoList() {
+        return builder.getDhoList();
+    }
+
+    @Override
+    public void loadBatch(List<Transaction> batch) {
+        if (closed) {
+            throw new IllegalStateException("Engine closed");
+        }
+        long start = phaseListener != null ? System.nanoTime() : 0L;
+        if (!batch.isEmpty()) {
+            if (windowTruncated) {
+                int batchMax = batch.get(batch.size() - 1).tid();
+                for (Transaction t : batch) {
+                    requireIncreasing(t);
+                    tl = t.tid();
+                    totalTransactions++;
+                    // GĐ0: evict the transaction leaving the window (clear-before-write).
+                    long victim = (long) tl - windowSize;
+                    if (victim >= 1L && window.evictTid((int) victim)) {
+                        evictions++;
+                    }
+                    // Skip writing anything that will be outside the FINAL window of this batch
+                    // (bulk-load optimization): only the last W matter for the next mineNow().
+                    if ((long) batchMax - t.tid() < windowSize) {
+                        window.write(t.tid());
+                        builder.add(t);
+                        globalEntries += t.length();
+                    }
+                }
+            } else {
+                for (Transaction t : batch) {
+                    requireIncreasing(t);
+                    tl = t.tid();
+                    totalTransactions++;
+                    builder.add(t);
+                    globalEntries += t.length();
                 }
             }
-
-            // Write to window
-            int slot = window.write(tid, tx.items().length);
-
-            // Map items to IDs and add entries
-            for (String itemName : tx.items()) {
-                int itemId = dictionary.getOrAssignId(itemName);
-                DHONodeOptimized node = builder.getDhoList().getOrCreateNode(itemId);
-                node.addEntry(slot, tx.items().length);
-            }
         }
-
-        if (rec != null) {
-            rec.end();
-            phaseListener.onPhase(Phase.CONSTRUCTION, rec.startNanos, rec.endNanos);
+        if (phaseListener != null) {
+            phaseListener.onPhase(Phase.CONSTRUCTION, start, System.nanoTime());
         }
     }
 
     @Override
     public MineResult mineNow() {
-        if (closed) throw new IllegalStateException("Engine closed");
+        if (closed) {
+            throw new IllegalStateException("Engine closed");
+        }
+        if (totalTransactions == 0) {
+            return new MineResult(List.of(), 0, 0, 0.0);
+        }
 
-        DHOListOptimized dhoList = builder.getDhoList();
-        int tl = totalLoaded;
-        int w = window.windowSize;
-        int nEff = (w == WindowMath.INFINITE) ? tl : Math.min(tl, w);
-        double minSup = config.partial() * nEff;
+        double minSup = WindowMath.minSup(config.partial(), tl, windowSize); // two-phase (INV-F)
+        double z = WindowMath.maxDO(config.decayFactor(), tl);
+        long nEff = WindowMath.effectiveTransactions(tl, windowSize);
 
-        // Reconstruction
-        ReconstructorOptimized reconstructor = new ReconstructorOptimized(
-                dhoList, window, decayLookup, tl, config.f(), minSup, phaseListener);
-        List<DHONodeOptimized> sortedNodes = reconstructor.reconstruct(forkJoinPool);
-
-        // Mining
-        MinerOptimized miner = new MinerOptimized(
-                window, decayLookup, tl, config.f(), minSup, config.epsilonCmp(),
-                forkJoinPool, phaseListener, progressListener);
-        List<MinerOptimized.PatternResult> patternResults = miner.mine(sortedNodes, reconstructor.getDuboBounds());
-
-        // Convert to common MineResult
-        List<Pattern> patterns = new ArrayList<>();
-        for (MinerOptimized.PatternResult pr : patternResults) {
-            String[] itemNames = new String[pr.itemIds.length];
-            for (int i = 0; i < pr.itemIds.length; i++) {
-                itemNames[i] = dictionary.getName(pr.itemIds[i]);
+        // Re-validate with the known stream length (may add INFEASIBLE_PARTIAL / PARTIAL_ZERO).
+        List<Issue> issues = ParameterValidator.validate(config, tl);
+        for (Issue issue : issues) {
+            if (issue.severity() == Severity.ERROR) {
+                throw new IllegalArgumentException("invalid V3 config at mining time: " + issue);
             }
-            // tids not tracked in V3 miner yet - empty array
-            patterns.add(new Pattern(itemNames, pr.doValue, new int[0]));
         }
-
-        // Stats
-        globalNodeCount = dhoList.nodeCount();
-        globalEntryCount = 0;
-        for (DHONodeOptimized node : dhoList.nodesInCreationOrder()) {
-            globalEntryCount += node.size;
-        }
-        lastMiningTasks = miner.getMiningTasks();
-        windowTruncated = miner.isWindowTruncated();
-
-        // Build warnings
         warnings.clear();
-        if (windowTruncated) {
-            warnings.add("Window active: minOcc=" + config.minOcc() + " ⇒ minSup frozen at ∂×W");
-        }
-        if (config.minOcc() == 0.0) {
-            warnings.add("Window inactive (minOcc=0): paper mode, results ≡ V1");
-        }
+        warnings.addAll(issues);
 
-        MineResult result = new MineResult(patterns, tl, lastTid, minSup);
+        lastMiningTasks = 0;
 
-        if (windowListener != null) {
-            windowListener.onWindowUpdate(getWindowInfo());
+        // DO-ceiling short-circuit (D19): ∂×N_eff > Z + ε ⇒ DOP set provably empty.
+        if (minSup > z + config.epsilon()) {
+            windowInfo = new WindowInfo(windowSize, nEff, minSup, z, evictions, 0, 0);
+            emitWindow();
+            return new MineResult(List.of(), totalTransactions, tl, minSup);
         }
 
-        return result;
-    }
+        long r0 = phaseListener != null ? System.nanoTime() : 0L;
+        List<DHONodeOptimized> sorted = ReconstructorOptimized.run(
+                builder.getDhoList(), window, decayLookup, tl, pool);
+        if (phaseListener != null) {
+            phaseListener.onPhase(Phase.RECONSTRUCTION, r0, System.nanoTime());
+        }
 
-    @Override
-    public WindowInfo getWindowInfo() {
-        int w = window.windowSize;
-        int nEff = (w == WindowMath.INFINITE) ? totalLoaded : Math.min(totalLoaded, w);
-        double minSup = config.partial() * nEff;
-        double z = ZCalculator.compute(config.f(), totalLoaded);
-        return new WindowInfo(
-                w == WindowMath.INFINITE ? WindowMath.INFINITE : w,
-                nEff,
-                minSup,
-                z,
-                0, // evictions - not tracked separately yet
-                window.liveCount(),
-                0  // dead entries
-        );
+        long live = 0;
+        long dead = 0;
+        for (DHONodeOptimized node : builder.getDhoList().nodesList()) { // post-discard snapshot
+            live += node.support();
+            dead += node.head();
+        }
+        liveEntries = live;
+        deadEntries = dead;
+        windowInfo = new WindowInfo(windowSize, nEff, minSup, z, evictions, live, dead);
+        emitWindow();
+
+        long m0 = phaseListener != null || miningProgressListener != null ? System.nanoTime() : 0L;
+        MinerOptimized miner = new MinerOptimized(decayLookup, tl, minSup, config.epsilon(), pool);
+        List<MinerOptimized.PatternResult> results = miner.mine(sorted, miningProgressListener);
+        lastMiningTasks = miner.getMiningTasks();
+        if (phaseListener != null) {
+            phaseListener.onPhase(Phase.MINING, m0, System.nanoTime());
+        }
+
+        Map<String, Pattern> byKey = new LinkedHashMap<>();
+        for (MinerOptimized.PatternResult pr : results) {
+            Pattern pattern = toPattern(pr);
+            byKey.putIfAbsent(pattern.canonicalKey(), pattern);
+        }
+        List<Pattern> patterns = new ArrayList<>(byKey.values());
+        patterns.sort(Comparator.comparing(Pattern::canonicalKey));
+        return new MineResult(patterns, totalTransactions, tl, minSup);
     }
 
     @Override
     public void close() {
         if (!closed) {
-            forkJoinPool.shutdown();
-            workerPool.shutdown();
+            pool.shutdown();
             closed = true;
         }
     }
 
-    // Getters for stats
-    public int globalNodeCount() { return globalNodeCount; }
-    public int globalEntryCount() { return globalEntryCount; }
-    public int totalLoaded() { return totalLoaded; }
-    public int lastTid() { return lastTid; }
-    public int lastMiningTasks() { return lastMiningTasks; }
-    public MiningConfig config() { return config; }
-    public ItemDictionary dictionary() { return dictionary; }
-    public WindowBufferOptimized window() { return window; }
-    public DHOListOptimized dhoList() { return builder.getDhoList(); }
+    private Pattern toPattern(MinerOptimized.PatternResult pr) {
+        String[] names = new String[pr.itemIds().length];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = dictionary.getName(pr.itemIds()[i]);
+        }
+        return new Pattern(names, pr.doValue(), new int[0]);
+    }
+
+    private void emitWindow() {
+        if (windowListener != null) {
+            windowListener.onWindow(windowInfo);
+        }
+    }
+
+    private void requireIncreasing(Transaction t) {
+        if (t.tid() <= tl) {
+            throw new IllegalArgumentException(
+                    "stream TIDs must be strictly increasing (INV-A); got " + t.tid() + " after " + tl);
+        }
+    }
 }

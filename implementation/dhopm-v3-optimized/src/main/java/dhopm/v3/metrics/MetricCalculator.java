@@ -1,53 +1,38 @@
 package dhopm.v3.metrics;
 
 import dhopm.v3.dho.DHONodeOptimized;
-import dhopm.v3.window.WindowBufferOptimized;
+import dhopm.v3.window.DecayLookup;
 
 /**
- * DO (Damped Occupancy) metric calculator - optimized for V3 structures.
- * Computes DO = Σ (1/|T|) * f^(TL - Td) over live entries of a node.
- * Identical formula to V1/V2, adapted for SoA node + WindowBuffer.
+ * DO metric (canonical 2.3). Same contributions as V1/V2, but computed through
+ * {@link DecayLookup} (bit-identical to {@code Math.pow(f, tl - tid)}) over the SoA live region
+ * {@code node.head() .. node.size()}.
  */
 public final class MetricCalculator {
 
-    private MetricCalculator() {}
+    private MetricCalculator() {
+    }
+
+    /** Occupancy of a pattern in one transaction: {@code |X| / |Td|}. */
+    public static double occupancy(int patternLen, int transactionLen) {
+        return patternLen / (double) transactionLen;
+    }
 
     /**
-     * Computes DO for a node given current TL and decay values in window buffer.
-     * DO = Σ (ref2[i])^-1 * decay[slot] for live entries.
+     * DO of a length-1 pattern (global node): {@code Σ (1/|T|) · f^(TL−Td)} over live entries,
+     * accumulated in TID order on a single thread (C5).
      */
-    public static double computeDO(DHONodeOptimized node, WindowBufferOptimized window, int tl) {
+    public static double computeDO(DHONodeOptimized node, DecayLookup decayLookup, int tl) {
         double sum = 0.0;
-        for (int i = node.head; i < node.size; i++) {
-            int slot = node.txSlot[i];
-            if (window.alive[slot] == 1 && window.txId[slot] == window.txId[slot]) {
-                double decay = window.decay[slot];
-                if (decay > 0) {
-                    sum += decay / node.ref2[i];
-                }
-            }
+        int end = node.size();
+        for (int i = node.head(); i < end; i++) {
+            sum += (1.0 / node.lenAt(i)) * decayLookup.get(tl - node.tidAt(i));
         }
         return sum;
     }
 
-    /**
-     * Computes support (number of live entries).
-     */
-    public static int computeSupport(DHONodeOptimized node, WindowBufferOptimized window) {
-        int count = 0;
-        for (int i = node.head; i < node.size; i++) {
-            int slot = node.txSlot[i];
-            if (window.alive[slot] == 1 && window.txId[slot] == window.txId[slot]) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
-     * Computes occupancy for a live entry: (1/|T|) * f^(TL - tid).
-     */
-    public static double occupancy(int txLen, double decay) {
-        return decay / txLen;
+    /** Support (C2) = number of live entries. */
+    public static int support(DHONodeOptimized node) {
+        return node.support();
     }
 }

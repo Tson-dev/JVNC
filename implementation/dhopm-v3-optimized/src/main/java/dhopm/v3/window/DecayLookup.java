@@ -1,45 +1,53 @@
 package dhopm.v3.window;
 
+import dhopm.common.window.WindowMath;
+
 /**
- * Precomputed decay lookup table: decay[k] = f^k for k = 0..maxAge.
- * maxAge = W-1 (maximum age of a transaction in the window).
- * When W = INFINITE (minOcc=0 or f=1), falls back to Math.pow.
+ * Decay lookup: {@code get(age) = f^age}, cached in a table for the finite window
+ * {@code age ∈ [0, W-1]}; otherwise falls back to {@code Math.pow(f, age)}.
+ *
+ * <p>Bit-parity: the table is built with {@code Math.pow(f, k)} (NOT repeated multiplication) so
+ * {@code table[age]} is bit-identical to V1/V2's {@code Math.pow(f, tl - tid)} — required by
+ * {@code dhopm.common.testkit.GoldenAssert#samePatternSet} (exact {@code Double.compare}).
  */
 public final class DecayLookup {
 
-    public final double[] table;   // table[k] = f^k for k=0..maxAge
-    public final int maxAge;       // W-1, or -1 if infinite window
+    private final double f;
+    private final boolean infinite;
+    private final double[] table;   // table[k] = f^k for k = 0..maxAge
+    private final int maxAge;       // W - 1 (finite) / -1 (infinite)
 
-    private DecayLookup(double[] table, int maxAge) {
+    private DecayLookup(double f, boolean infinite, double[] table, int maxAge) {
+        this.f = f;
+        this.infinite = infinite;
         this.table = table;
         this.maxAge = maxAge;
     }
 
-    public static DecayLookup create(double f, int windowSize) {
+    public static DecayLookup create(double f, long windowSize) {
         if (windowSize == WindowMath.INFINITE || f == 1.0) {
-            return new DecayLookup(null, -1);
+            return new DecayLookup(f, true, null, -1);
         }
-        int maxAge = windowSize - 1;
+        int maxAge = Math.toIntExact(windowSize) - 1;
         double[] table = new double[maxAge + 1];
-        table[0] = 1.0;
-        for (int k = 1; k <= maxAge; k++) {
-            table[k] = table[k - 1] * f;
+        for (int k = 0; k <= maxAge; k++) {
+            table[k] = Math.pow(f, k);
         }
-        return new DecayLookup(table, maxAge);
+        return new DecayLookup(f, false, table, maxAge);
     }
 
-    /**
-     * Gets f^age. If infinite window or age > maxAge, computes via Math.pow.
-     */
+    /** {@code f^age}, bit-identical to {@code Math.pow(f, age)}. */
     public double get(int age) {
-        if (maxAge == -1 || age > maxAge) {
-            // Should not happen for finite window (age <= W-1), but fallback for safety
-            return Math.pow(table != null ? table[1] : 1.0, age);
+        if (infinite) {
+            return Math.pow(f, age);
         }
-        return table[age];
+        if (age >= 0 && age <= maxAge) {
+            return table[age];
+        }
+        return Math.pow(f, age);
     }
 
     public boolean isInfinite() {
-        return maxAge == -1;
+        return infinite;
     }
 }

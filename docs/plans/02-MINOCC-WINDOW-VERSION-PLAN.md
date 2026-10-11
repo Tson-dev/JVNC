@@ -18,7 +18,7 @@
 | **Ý tưởng nguồn** | `docs/Draft Idea.txt` (tác giả) |
 | **Quyết định** | D9, D10, D11, D12, D14 trong `00-OVERALL-PLAN.md` §10 và `docs/DECISIONS.md` |
 | **Định vị threading** | Level 1 (giống V1) — V2 tập trung **đúng ngữ nghĩa**, chưa tối ưu |
-| **Trạng thái** | 🕔 Chưa bắt đầu — **giai đoạn ưu tiên số 1** sau G1 |
+| **Trạng thái** | ✅ **Đã hoàn tất (G2)** — 18 test xanh, báo cáo `docs/reports/G2-V2-MINOCC-BAOCAO.md` |
 
 ### Revision History
 

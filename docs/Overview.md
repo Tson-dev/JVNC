@@ -1,6 +1,6 @@
 # DHOPM / DOPM — Overview
 
-> Cổng vào để đọc dự án. Bắt đầu ở đây, rồi đi xuống `README.md` → `docs/DECISIONS.md` → `docs/plans/00-OVERALL-PLAN.md`.
+> Cổng vào để đọc dự án. Bắt đầu ở `docs/Readme.md` (tóm tắt tổng thể đã kiểm chứng), rồi đi xuống `README.md` → `docs/DECISIONS.md` → `docs/plans/00-OVERALL-PLAN.md`. Mâu thuẫn "tối ưu hoá V1–V2–V3": `docs/reports/V1-V2-V3-OPTIMIZATION-COMPARISON.md`.
 
 ---
 
@@ -77,9 +77,10 @@ Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 |---|---|
 | C0 Planning | ✅ |
 | G0 Khởi động | ✅ |
-| **G1 V1 Standard** | ✅ **Xong** — 56 test xanh, đóng băng làm oracle |
-| **G2 V2 MinOcc/Window** | 🕔 **Đang tiếp theo** — plan tại `docs/phases/P2-G2.md` |
-| G3–G7 | 🕓 |
+| **G1 V1 Standard** | ✅ **Xong** — đóng băng làm oracle (32 test V1) |
+| **G2 V2 MinOcc/Window** | ✅ **Xong** — 18 test V2; tổng **105 test xanh** (55 common + 32 V1 + 18 V2) |
+| **G3 V3 Optimized** | ✅ **Xong** — 16 test V3; toàn reactor **121 test xanh**; `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit. **Tối ưu rõ rệt** sau khi sửa lỗi nhân bản tác vụ mining: **nhanh hơn V2 2.3–28×**, heap thấp hơn. Chi tiết: `reports/G3-V3-OPTIMIZED-BAOCAO.md` |
+| G4–G7 | 🕓 |
 
 ## 7. Bản đồ nhanh "muốn biết gì thì đọc gì"
 
@@ -93,7 +94,10 @@ Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 | Test hiện có | `README.md` §TestKit |
 | Vì sao chọn kiến trúc này | `DECISIONS.md` |
 | G1 kết quả thế nào | `reports/G1-V1-STANDARD-BAOCAO.md` |
-| Làm tiếp gì | `phases/P2-G2.md` |
+| G2 kết quả thế nào | `reports/G2-V2-MINOCC-BAOCAO.md` |
+| **G3 (V3) kết quả thế nào** | `reports/G3-V3-OPTIMIZED-BAOCAO.md` |
+| Trạng thái tổng thể + so sánh tối ưu V1–V2–V3 | `docs/Readme.md` · `reports/V1-V2-V3-OPTIMIZATION-COMPARISON.md` |
+| Làm tiếp gì | `phases/` · `plans/00-OVERALL-PLAN.md` §8 |
 
 ---
 

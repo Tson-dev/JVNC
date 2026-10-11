@@ -1,0 +1,50 @@
+File này chứa nội dung về việc một số ý tưởng về mine commnetcuar CLI.
+File này là tạm thời, sẽ không được ref hoặc ghi lại trong các tài liệu và sẽ được xóa khi hết giá trị.
+
+1.
+về yêu cầu cơ bản thì yêu cầu gồm cơ bản phải có 2 lệnh
+một là lệnh mining bình thường, gọi lên và chỉ xuất kết quả khi mining xong.
+hai là lệnh tuần bước, tức sẽ xuất ra từng thông số khi tính.
+
+hiện trạng thì có lệnh mine (V1 và V2 không đồng bộ) và các lệnh như detail, stream, golden
+
+lệnh mine:
+- hiện trạng: kết quả xuất chỉ là số trên terminal, không phải danh sách các DOPs
+- sửa lại: bắt buộc phải có danh sách DOPs
+
+lệnh detail:
+- hiện trạng: xuất DOPs nhưng thiếu thông tin nền như DOPs list dùng để mining (window).
+- sửa lại: thêm thông tin
+
+lệnh stream:
+- hiện trạng: lệnh khỏi yêu cầu, stream đã bị hiểu là chạy thời gian thực, còn yêu cầu là lệnh chạy log từng bước (đây là 2 lệnh khác nhau)
+- sửa lại: đổi lại
+
+giải thích lại lệnh stream:
+khác với detail, stream phải đưa ra thông tin rằng bước làm gì, kết quả, thời gian, bộ nhớ, ...
+ví dụ trong giai đoạn mining thì có kiểm tra DOP, kiểm tra UBDO, mở rộng và tính DO pattern mở rộng thì theo đúng là stream sẽ xuất log của từng bước này và thông tin chi thiết.
+không phải thông mining bao nhiều phần trăm như trong hiện trạng (con số % đó không hề đáng tin).
+để đủ dàng thì phải có một biến trong lệnh CLI là --detail <detail>
+với --detail 2: log chỉ ở DOPs, mỗi lần kiểm tra DOPs mà có pattern được coi là DOPs thì sẽ log lại
+với --detail 1: gồm DOPs, UBDO và DO khi mở rộng (chỉ log khi điều kiện true).
+với --detail 0(highest): log gồm như detail 1 và log các điều kiện false.
+tức giả sửa kiểm tra pattern ABC có phải DOPs thì detail 2 và 1 chỉ log lại khi ABC là DOPs, còn detail không cũng sẽ log lại dù ABC không phải là DOPs
+
+nếu như có két nối remote với FE thì các log vẫn được gửi qua cho FE (đúng với tên chức năng là stream).
+
+về giai đoạn contruction và recontruction thì không cần log vì đã có window đóng vai trò này
+
+lệnh cần thêm: step
+
+2.
+Kết quả của tất cả các lệnh mining phải trả về đều có DOPs pattern tức kết quả mining, chỉ là cách trình bày khác nhau.
+cụ thể thì hiện trạng không phải lệnh nào cũng xuất ra terminal kết quả mining, làm việc kiểm tra và so sánh kết quả riêng phía BE khó khăn.
+
+3.
+config của CLI có về isLog là biến về việc có lưu lại dữ liệu lưu không, nếu isLog true thì chỉ xuất kết quả ra terminal thì còn phải tạo
+file trong /mine và ghi vào đó, về file thì sẽ do một class đơn giản quản lý.
+Class quản lý chỉ đơn giản có lệnh write(fileID, str) với fileID là ID file cần ghi, str là nội dung cần thêm.
+fileID được tìm theo cấu trúc file mining<fileID>.txt, ví dụ /mine/mine001.txt sẽ có fileID = "001".
+Yêu cầu về quản lý là giữ ở mức đơn giản, thứ 2 là ưu tiên là write sẽ dùng queues, quản lý sẽ làm trên một thread riêng để
+đảm bảo không block thread/worker mining, việc dùng queues để khi nhiều mining cùng lúc thì write vẫn có thể nhớ được sẽ ghi gì nhờ queues.
+

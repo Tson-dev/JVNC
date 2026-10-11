@@ -5,6 +5,23 @@
 
 ---
 
+> ## ⚠️ ERRATA (cập nhật 2026-10-10) — báo cáo này đã lỗi thời về trạng thái triển khai
+>
+> Báo cáo này được viết **trước khi G2 hoàn tất** — phần mô tả trạng thái code KHÔNG còn đúng:
+>
+> - **§1.2 / §3.1 ("V2 chưa bắt đầu", "toàn bộ V2 chưa có code")** → ❌ sai. V2 **đã hoàn tất**: `WindowMath`, `ParameterValidator`, `WindowInfo`, `Handle/WindowBuffer`, `Entry.tid` (D39), `head/support`, `minSup` 2 pha, `min(DUBO,Z)`, short-circuit, TC9–TC18, CLI `window/validate/sweep` — tất cả có trong `implementation/dhopm-v2-minocc`, **18 test xanh**, tổng **105 test xanh** (common 55 + V1 32 + V2 18).
+> - **§3.6 ("V3 chưa có quyết định microbenchmark")** → vẫn đúng về microbenchmark, **nhưng V3 đã có code draft** (`implementation/dhopm-v3-optimized`, ~13 file main) — **KHÔNG biên dịch được (~30 lỗi), 0 test, không CLI**; một số thiết kế tái lập lỗi D39 và sai canonical (sort, DUBO). Chi tiết đối chiếu: `docs/reports/V1-V2-V3-OPTIMIZATION-COMPARISON.md`.
+> - **§1.5 ("56 test xanh")** → con số hiện tại là **105**.
+>
+> Giữ nguyên thân bài để giữ lịch sử phân tích; dùng `docs/Readme.md` cho trạng thái mới nhất.
+>
+> ## ⚠️ ERRATA 2 (cập nhật 2026-10-11) — V3 đã được viết lại
+>
+> - **§3.6 / mọi chỗ ghi V3 "không biên dịch, 0 test"** → ❌ không còn đúng. V3 đã **viết lại toàn bộ**: build xanh, **16 test V3**, toàn reactor **121 test** (common 55 + V1 32 + V2 18 + V3 16); `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` **bit-for-bit**, deterministic theo số luồng. Các lỗi D39/canonical/DUBO đã khắc phục.
+> - **Trạng thái mới nhất:** `docs/Readme.md` · `docs/reports/G3-V3-OPTIMIZED-BAOCAO.md`.
+
+---
+
 ## 1. NHỮNG CHỖ RÕ RÀNG (ĐÃ CHỐT, CÓ THỂ TRIỂN KHAI)
 
 ### 1.1 Canonical Spec — Nền móng thuật toán (Plan 00 §2, DECISIONS D9–D23, D38–D41)
