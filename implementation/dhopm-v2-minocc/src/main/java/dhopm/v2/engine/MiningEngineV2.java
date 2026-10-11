@@ -2,6 +2,8 @@ package dhopm.v2.engine;
 
 import dhopm.common.config.MiningConfig;
 import dhopm.common.contract.MineResult;
+import dhopm.common.contract.MiningEvent;
+import dhopm.common.contract.MiningEventListener;
 import dhopm.common.contract.MiningProgress;
 import dhopm.common.contract.MiningProgressListener;
 import dhopm.common.contract.Pattern;
@@ -9,6 +11,7 @@ import dhopm.common.contract.Phase;
 import dhopm.common.contract.PhaseAwareEngine;
 import dhopm.common.contract.PhaseListener;
 import dhopm.common.contract.ProgressAwareEngine;
+import dhopm.common.contract.StreamAwareEngine;
 import dhopm.common.contract.WindowAwareEngine;
 import dhopm.common.contract.WindowListener;
 import dhopm.common.transaction.Transaction;
@@ -29,7 +32,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 import dhopm.common.window.ParameterValidator.Issue;
 import dhopm.common.window.ParameterValidator.Severity;
@@ -54,7 +59,8 @@ import dhopm.common.window.ParameterValidator.Severity;
  * {@code MIN_OCC_TOO_LARGE} / {@code WINDOW_TOO_LARGE} (ERROR); warnings are accumulated and
  * re-exposed after every {@code mineNow()}.
  */
-public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngine, WindowAwareEngine, AutoCloseable {
+public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngine, WindowAwareEngine,
+        StreamAwareEngine, AutoCloseable {
 
     private final MiningConfig config;
     private final WorkerPool pool;
@@ -72,10 +78,13 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
     private long liveEntries;
     private long deadEntries;
     private WindowInfo windowInfo = WindowInfo.none();
+    private List<DHONode> lastDho = List.of();
 
     private PhaseListener phaseListener;
     private MiningProgressListener miningProgressListener;
     private WindowListener windowListener;
+    private MiningEventListener eventListener;
+    private int eventDetail = -1;
 
     public MiningEngineV2(MiningConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -117,6 +126,12 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
     }
 
     @Override
+    public void setMiningEventListener(MiningEventListener listener, int detail) {
+        this.eventListener = listener;
+        this.eventDetail = detail;
+    }
+
+    @Override
     public WindowInfo windowInfo() {
         return windowInfo;
     }
@@ -154,6 +169,16 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
 
     public int lastMiningTasks() {
         return lastMiningTasks;
+    }
+
+    /**
+     * Snapshot of the global DHO-List AFTER the last reconstruction (nodes sorted by support
+     * ascending, ties in creation order; {@code support()} = live entries in the window).
+     * Empty when the last {@code mineNow()} short-circuited on the DO ceiling. Read-only —
+     * used by the {@code detail} CLI command.
+     */
+    public List<DHONode> dhoListAfterReconstruction() {
+        return lastDho;
     }
 
     public long evictionCount() {
@@ -227,6 +252,7 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
 
         // DO-ceiling short-circuit (D19): ∂×N_eff > Z + ε ⇒ DOP set provably empty.
         if (minSup > z + config.epsilon()) {
+            lastDho = List.of();
             windowInfo = new WindowInfo(windowSize, WindowMath.effectiveTransactions(tl, windowSize),
                     minSup, z, evictions, 0, 0);
             if (windowListener != null) {
@@ -237,6 +263,7 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
 
         long r0 = phaseListener != null ? System.nanoTime() : 0L;
         List<DHONode> sorted = Reconstructor.run(global, config.decayFactor(), tl, pool);
+        lastDho = sorted;
         if (phaseListener != null) {
             phaseListener.onPhase(Phase.RECONSTRUCTION, r0, System.nanoTime());
         }
@@ -257,6 +284,9 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
 
         long m0 = phaseListener != null || miningProgressListener != null ? System.nanoTime() : 0L;
         Map<String, Pattern> results = new LinkedHashMap<>();
+        // Real-time PATTERN events are deduplicated across root tasks (a pattern can be reached
+        // through several prefixes) so the stream shows each accepted pattern exactly once.
+        final MiningEventListener sink = eventListener == null ? null : dedupPatterns(eventListener);
         List<Callable<Map<String, Pattern>>> tasks = new ArrayList<>();
         for (int i = 0; i < sorted.size(); i++) {
             if (sorted.get(i).support() < minSup) {
@@ -264,20 +294,20 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
             }
             final int index = i;
             tasks.add(() -> Miner.mineRoot(sorted, index, config.decayFactor(), config.epsilon(),
-                    minSup, tl, windowTruncated));
+                    minSup, tl, windowTruncated, sink, eventDetail));
         }
         lastMiningTasks = tasks.size();
         List<Map<String, Pattern>> partials;
         if (miningProgressListener == null) {
             partials = pool.invokeAll(tasks);
         } else {
-            int[] merged = new int[1];
+            Set<String> seen = ConcurrentHashMap.newKeySet();
             partials = pool.invokeAll(tasks, (idx, partial) -> {
                 if (partial != null) {
-                    merged[0] += partial.size();
+                    seen.addAll(partial.keySet());
                 }
                 miningProgressListener.onProgress(new MiningProgress(
-                        idx, tasks.size(), merged[0], (System.nanoTime() - m0) / 1_000_000L));
+                        idx, tasks.size(), seen.size(), (System.nanoTime() - m0) / 1_000_000L));
             });
         }
         for (Map<String, Pattern> partial : partials) {
@@ -297,6 +327,33 @@ public final class MiningEngineV2 implements PhaseAwareEngine, ProgressAwareEngi
     @Override
     public void close() {
         pool.shutdown();
+    }
+
+    /**
+     * Wraps the listener so a pattern is reported once per canonical key: real-time PATTERN events
+     * and accepted DOP checks (contract {@code --detail 2}) are deduplicated across roots/prefixes.
+     * Rejected checks and prune (UBDO) events still repeat, since they describe each actual step.
+     */
+    private static MiningEventListener dedupPatterns(MiningEventListener delegate) {
+        Set<String> patterns = ConcurrentHashMap.newKeySet();
+        Set<String> acceptedDop = ConcurrentHashMap.newKeySet();
+        return event -> {
+            switch (event.kind()) {
+                case PATTERN -> {
+                    if (!patterns.add(event.key())) {
+                        return;
+                    }
+                }
+                case DOP_CHECK -> {
+                    if (event.passed() && !acceptedDop.add(event.key())) {
+                        return;
+                    }
+                }
+                default -> {
+                }
+            }
+            delegate.onEvent(event);
+        };
     }
 
     private void requireIncreasing(Transaction t) {

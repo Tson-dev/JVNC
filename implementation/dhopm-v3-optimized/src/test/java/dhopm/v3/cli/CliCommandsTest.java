@@ -63,6 +63,8 @@ class CliCommandsTest {
         String out = run("mine", "--dataset", fimi().toString(), "--partial", "0.15", "--f", "0.9", "--parts", "1");
         assertTrue(out.contains("total_ms"), "total line expected:\n" + out);
         assertTrue(out.contains("window:"), "window block expected:\n" + out);
+        assertTrue(out.contains("patterns ("), "DOP-list header expected:\n" + out);
+        assertTrue(out.contains("DO="), "DOP rows expected:\n" + out);
     }
 
     @Test

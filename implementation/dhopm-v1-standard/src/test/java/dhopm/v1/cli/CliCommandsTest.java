@@ -61,6 +61,8 @@ class CliCommandsTest {
     void mineCommand() throws Exception {
         String out = run("mine", "--dataset", fimi().toString(), "--partial", "0.15", "--f", "0.9", "--parts", "1");
         assertTrue(out.contains("total_ms"), "total line expected:\n" + out);
+        assertTrue(out.contains("patterns ("), "DOP-list header expected:\n" + out);
+        assertTrue(out.contains("DO="), "DOP rows expected:\n" + out);
     }
 
     @Test
@@ -73,10 +75,37 @@ class CliCommandsTest {
     }
 
     @Test
-    void streamCommandEmitsLoadAndTickEvents() throws Exception {
+    void detailCommandReportsDhoListAfterReconstruction() throws Exception {
+        String out = run("detail", "--dataset", fimi().toString(), "--parts", "1");
+        assertTrue(out.contains("DHO-List after reconstruction"),
+                "DHO-List after reconstruction expected:\n" + out);
+        assertTrue(out.contains("[R]") || out.contains("[ ]"), "root markers expected:\n" + out);
+    }
+
+    @Test
+    void streamCommandEmitsLoadTickPatternsAndFinalDop() throws Exception {
         String out = run("stream", "--dataset", fimi().toString(), "--parts", "1");
-        assertTrue(out.contains("[load  ]"), "load event expected:\n" + out);
-        assertTrue(out.contains("[mining]"), "mining completion event expected:\n" + out);
+        assertTrue(out.contains("load: part=1"), "load event expected:\n" + out);
+        assertTrue(out.contains("mining: roots"), "mining progress tick expected:\n" + out);
+        assertTrue(out.contains("DOP ("), "final DOP list expected:\n" + out);
+    }
+
+    @Test
+    void streamStepLogsMiningSteps() throws Exception {
+        String out = run("stream", "--dataset", fimi().toString(), "--parts", "1", "--step", "--detail", "0");
+        assertTrue(out.contains("step DOP_CHECK") || out.contains("step UBDO"),
+                "step log expected with --step --detail 0:\n" + out);
+    }
+
+    @Test
+    void streamStepDetail2OnlyReportsAcceptedDop() throws Exception {
+        String out = run("stream", "--dataset", fimi().toString(), "--parts", "1", "--step", "--detail", "2");
+        assertTrue(out.contains("DOP ("), "final DOP list expected:\n" + out);
+        for (String line : out.split("\\R")) {
+            if (line.contains("step DOP_CHECK")) {
+                assertTrue(line.contains("passed=true"), "detail 2 must only log accepted DOP:\n" + line);
+            }
+        }
     }
 
     @Test

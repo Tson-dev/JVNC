@@ -243,8 +243,27 @@
 ### 6.3 Kết quả mining luôn có DOPs (D47)
 
 - `mine` trả **danh sách DOPs** (kèm `window`); **không** chỉ in số.
-- `detail` = `mine` + thông tin nền (window dùng để mining, roots, entries/phase ms).
-- `stream` mặc định xuất **mỗi pattern khi đạt** (real-time); `--step` xuất **log từng bước**.
+- `detail` = `mine` + thông tin nền (window dùng để mining, roots, entries/phase ms) + **DHO-List sau Reconstruction**: toàn bộ node của global DHO, đánh dấu root `[R]` khi `support >= minSup − epsilon`.
+- `stream` mặc định xuất **mỗi pattern khi đạt** (real-time); `--step` xuất **log từng bước**; cả hai đều kết thúc bằng **danh sách DOP**.
+
+> **Định dạng tham chiếu (CLI v1/v2 — `detail`)**
+> ```
+> DHO-List after reconstruction (7 nodes; [R] = root support >= minSup=1.2000):
+>   [ ] G                    support=1    DO=0.333333  entries=1    tids=[8]
+>   [R] F                    support=5    DO=1.255347  entries=5    tids=[2, 4, 5, 6, 7]
+> ```
+> **Định dạng tham chiếu (CLI v1/v2 — `stream`)** — dòng `event` tham chiếu cho JSON:
+> ```
+> load: part=1 tx=8 (tid 1..8)
+>   pattern: A,E   DO=1.260109 support=3 tids=[1, 2, 8]        ← real-time, dedup theo key
+>   mining: roots 4/6 patterns=7 elapsed_ms=22                  ← patterns = số pattern KHÁC NHAU
+>   step DOP_CHECK F     do=1.255347 minSup=1.2000 passed=true  ← --step
+>   step UBDO      C,D,E ubdo=1.068787 z=1.0688 minSup=1.2000 passed=false
+> DOP (2):                                                       ← kết thúc mỗi part
+>     1. A,E   DO=1.260109 support=3
+>     2. F     DO=1.255347 support=5
+> ```
+> Yêu cầu: pattern/CD đi qua nhiều prefix ⇒ **pattern đạt báo 1 lần duy nhất** (canonical key); mức `--detail 2` cũng loại trùng DOP_CHECK đã `passed`.
 
 ### 6.4 `--detail` (chỉ dùng cho `stream --step`)
 
@@ -281,13 +300,15 @@
   "saved":{"fileID":"26-10-11_001","path":"/mine/mine_26-10-11_001.txt"} }
 ```
 
-### 7.2 `detail` — bổ sung `stats`
+### 7.2 `detail` — bổ sung `stats` + DHO-List sau Reconstruction
 
 ```jsonc
 {"id":3,"v":1,"ok":true,"...":"như mine","stats":{
   "nodes":[{"item":"F","support":7,"do":1.2553,"head":0,"entries":7}],
   "roots":6,"globalEntries":120,"topN":5,"phaseMs":{"g0":1,"g1":3,"g2":4,"g3":9}}}
 ```
+
+- `stats.nodes` = **DHO-List sau Reconstruction**: toàn bộ node của global DHO (không chỉ top-N); thêm cờ root `R` khi `support >= minSup − epsilon`.
 
 ### 7.3 `stream` (real-time) và `stream --step`
 
@@ -527,9 +548,10 @@ BackendClient implements BridgeEngine
 
 | Lệnh | Dùng API |
 |---|---|
-| `mine`/`detail`/`session.mine` | `Engine.loadBatch` + `Engine.mineNow` → `MineResult`, `Pattern` |
-| `stream` real-time | `ProgressAwareEngine` + `MiningProgressListener` |
-| `stream --step` / `--detail` | `PhaseAwareEngine` (`Phase`) + listener (DOP/UBDO/DO) |
+| `mine`/`session.mine` | `Engine.loadBatch` + `Engine.mineNow` → `MineResult`, `Pattern` |
+| `detail` | như `mine` + `dhoListAfterReconstruction()` (DHO-List sau Reconstruction: toàn bộ node + đánh dấu root) |
+| `stream` real-time | `StreamAwareEngine.setMiningEventListener(listener, -1)` → `MiningEvent.Kind.PATTERN` |
+| `stream --step` / `--detail` | `StreamAwareEngine.setMiningEventListener(listener, 0..2)` → `MiningEvent` (`DOP_CHECK`/`UBDO`) |
 | `window` / window event | `WindowAwareEngine` + `WindowListener` (`WindowInfo`), `WindowMath` |
 | `validate` | `ParameterValidator.validate(config[, tl])` (`Issue`, `Severity`) |
 | `inspect` | `TransactionSource` / `FimiTransactionReader` / `TextTransactionReader` / `ZipDataset` |

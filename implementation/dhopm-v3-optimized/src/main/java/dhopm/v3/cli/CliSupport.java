@@ -1,6 +1,7 @@
 package dhopm.v3.cli;
 
 import dhopm.common.config.MiningConfig;
+import dhopm.common.contract.Pattern;
 import dhopm.common.io.DatasetFile;
 import dhopm.common.io.FimiTransactionReader;
 import dhopm.common.io.TextTransactionReader;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -189,6 +191,17 @@ final class CliSupport {
                 + " evict=" + w.evictions() + " live=" + w.liveEntries() + " dead=" + w.deadEntries();
     }
 
+    /** Prints the mined DOP list (sorted by DO desc) so {@code mine} returns the actual results. */
+    static void printPatterns(List<Pattern> patterns) {
+        List<Pattern> sorted = new ArrayList<>(patterns);
+        sorted.sort(Comparator.comparingDouble(Pattern::dampedOccupancy).reversed());
+        System.out.println("patterns (" + sorted.size() + "):");
+        int i = 1;
+        for (Pattern pt : sorted) {
+            System.out.printf("  %3d. %-24s DO=%.6f%n", i++, pt.canonicalKey(), pt.dampedOccupancy());
+        }
+    }
+
     static String fmt(double v) {
         return String.format(Locale.ROOT, "%g", v);
     }
@@ -202,7 +215,7 @@ final class CliSupport {
                 dhopm.v3.cli.Main <command> [options]
 
                 Commands (V3 OPTIMIZED — minimal standalone CLI):
-                  mine     short summary (per-part rows + totals) with the window block
+                  mine     summary (per-part rows + totals + window) then the DOP list
                   inspect  dataset/config stats without mining
                   window   damped-window lookup (NO dataset): W(f,minOcc), asymptotic dp_max + suffix
                   validate config checks: stable issue codes + exact feasibility when a dataset is given

@@ -1,6 +1,7 @@
 package dhopm.v1.cli;
 
 import dhopm.common.config.MiningConfig;
+import dhopm.common.contract.Pattern;
 import dhopm.common.io.DatasetFile;
 import dhopm.common.io.FimiTransactionReader;
 import dhopm.common.io.TextTransactionReader;
@@ -13,6 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -191,6 +194,48 @@ final class CliSupport {
                 + " tx (dataset has more)";
     }
 
+    /** Prints the mined DOP list (sorted by DO desc) so {@code mine} returns the actual results. */
+    static void printPatterns(List<Pattern> patterns) {
+        List<Pattern> sorted = new ArrayList<>(patterns);
+        sorted.sort(Comparator.comparingDouble(Pattern::dampedOccupancy).reversed());
+        System.out.println("patterns (" + sorted.size() + "):");
+        int i = 1;
+        for (Pattern pt : sorted) {
+            System.out.printf("  %3d. %-24s DO=%.6f%n", i++, pt.canonicalKey(), pt.dampedOccupancy());
+        }
+    }
+
+    /**
+     * Prints the global DHO-List after reconstruction (sorted by support ascending) with the
+     * candidate roots marked {@code [R]} ({@code support ≥ minSup = ∂×N}). Used by {@code detail}.
+     */
+    static void printDhoList(List<dhopm.v1.model.DHONode> nodes, double minSup) {
+        System.out.println("DHO-List after reconstruction (" + nodes.size()
+                + " nodes; [R] = root support >= minSup=" + fmt4(minSup) + "):");
+        for (dhopm.v1.model.DHONode n : nodes) {
+            boolean root = n.support() >= minSup - MiningConfig.DEFAULT_EPSILON;
+            System.out.printf("  %s %-20s support=%-4d DO=%.6f  entries=%-4d tids=%s%n",
+                    root ? "[R]" : "[ ]", n.item(), n.support(), n.doValue(), n.entries().size(),
+                    fmtTids(n.tids()));
+        }
+    }
+
+    /** Compact TID list (capped so a large support does not flood the log). */
+    static String fmtTids(int[] tids) {
+        int cap = 12;
+        if (tids.length <= cap) {
+            return Arrays.toString(tids);
+        }
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < cap; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(tids[i]);
+        }
+        return sb.append(", ...(").append(tids.length).append(")]").toString();
+    }
+
     static String fmt(double v) {
         return String.format(Locale.ROOT, "%g", v);
     }
@@ -204,9 +249,11 @@ final class CliSupport {
                 dhopm.v1.cli.Main <command> [options]
 
                 Commands (shared set for all 3 versions - overall plan 4.2):
-                  mine     short summary (default for legacy --dataset ... calls)
-                  detail   per-part debug: nodes/entries/roots + ms + top-N DO patterns
-                  stream   real-time log: load events + mining progress ticks
+                  mine     summary (per-part rows + totals) then the DOP list (default for legacy --dataset ... calls)
+                  detail   per-part debug: nodes/entries/roots + ms + DHO-List after reconstruction + top-N DO patterns
+                  stream   real-time log: load events + mining progress ticks + each pattern when reached,
+                           then the final DOP list. Add --step to log each mining step instead
+                           (--detail 0|1|2: 2=accepted DOP, 1=+accepted prune, 0=+rejected cases)
                   golden   run TestKit TC1-TC8 through the engine, print PASS/FAIL
                   inspect  dataset/config stats without mining
 

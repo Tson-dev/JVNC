@@ -1,6 +1,7 @@
 package dhopm.v2.cli;
 
 import dhopm.common.config.MiningConfig;
+import dhopm.common.contract.Pattern;
 import dhopm.common.io.DatasetFile;
 import dhopm.common.io.FimiTransactionReader;
 import dhopm.common.io.TextTransactionReader;
@@ -14,6 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -190,6 +193,49 @@ final class CliSupport {
                 + " evict=" + w.evictions() + " live=" + w.liveEntries() + " dead=" + w.deadEntries();
     }
 
+    /** Prints the mined DOP list (sorted by DO desc) so {@code mine} returns the actual results. */
+    static void printPatterns(List<Pattern> patterns) {
+        List<Pattern> sorted = new ArrayList<>(patterns);
+        sorted.sort(Comparator.comparingDouble(Pattern::dampedOccupancy).reversed());
+        System.out.println("patterns (" + sorted.size() + "):");
+        int i = 1;
+        for (Pattern pt : sorted) {
+            System.out.printf("  %3d. %-24s DO=%.6f%n", i++, pt.canonicalKey(), pt.dampedOccupancy());
+        }
+    }
+
+    /**
+     * Prints the global DHO-List after reconstruction (sorted by support ascending) with the
+     * candidate roots marked {@code [R]} ({@code support ≥ minSup = ∂×N_eff}). {@code head} is the
+     * dead-prefix offset (0 in paper mode); {@code entries} is the full entry count. Used by {@code detail}.
+     */
+    static void printDhoList(List<dhopm.v2.dho.DHONode> nodes, double minSup) {
+        System.out.println("DHO-List after reconstruction (" + nodes.size()
+                + " nodes; [R] = root support >= minSup=" + fmt4(minSup) + "):");
+        for (dhopm.v2.dho.DHONode n : nodes) {
+            boolean root = n.support() >= minSup - MiningConfig.DEFAULT_EPSILON;
+            System.out.printf("  %s %-20s support=%-4d DO=%.6f  head=%-4d entries=%-4d tids=%s%n",
+                    root ? "[R]" : "[ ]", n.item(), n.support(), n.doValue(), n.head(), n.entries().size(),
+                    fmtTids(n.tids()));
+        }
+    }
+
+    /** Compact TID list (capped so a large support does not flood the log). */
+    static String fmtTids(int[] tids) {
+        int cap = 12;
+        if (tids.length <= cap) {
+            return Arrays.toString(tids);
+        }
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < cap; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(tids[i]);
+        }
+        return sb.append(", ...(").append(tids.length).append(")]").toString();
+    }
+
     static String fmt(double v) {
         return String.format(Locale.ROOT, "%g", v);
     }
@@ -208,9 +254,12 @@ final class CliSupport {
                 dhopm.v2.cli.Main <command> [options]
 
                 Commands (V2 MINOCC/WINDOW — plan 02 §7):
-                  mine     short summary (per-part rows + totals) with the window block
-                  detail   per-part debug: nodes/entries/roots + ms + top-N DO patterns + window block
-                  stream   real-time log: load events + mining progress ticks
+                  mine     summary (per-part rows + totals + window) then the DOP list
+                  detail   per-part debug: nodes/entries/roots + ms + DHO-List after reconstruction
+                           + top-N DO patterns + window block
+                  stream   real-time log: load events + mining progress + each pattern when reached,
+                           then window + final DOP list. Add --step to log each mining step instead
+                           (--detail 0|1|2: 2=accepted DOP, 1=+accepted prune, 0=+rejected cases)
                   window   damped-window lookup (NO dataset): W(f,minOcc), asymptotic dp_max + suffix
                   validate config checks: stable issue codes + exact feasibility when a dataset is given
                   sweep    scan (partial, f, minOcc) combinations, mine each, print a table

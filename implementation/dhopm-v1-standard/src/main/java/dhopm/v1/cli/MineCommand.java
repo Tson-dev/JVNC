@@ -29,6 +29,7 @@ final class MineCommand {
         long totalMs = 0;
         int lastPatterns = 0;
         double peakHeapMb = 0;
+        dhopm.common.contract.MineResult lastResult = null;
         try (MiningEngine engine = new MiningEngine(CliSupport.config(p))) {
             TimingRecorder rec = new TimingRecorder();
             engine.setPhaseListener(rec);
@@ -38,6 +39,7 @@ final class MineCommand {
                 int to = Math.min(from0 + per, all.size());
                 engine.loadBatch(all.subList(from0, to));
                 var r = engine.mineNow();
+                lastResult = r;
                 lastPatterns = r.patterns().size();
                 totalMs = rec.totalMs();
                 peakHeapMb = rec.peakHeapBytes() / 1048576.0;
@@ -49,6 +51,7 @@ final class MineCommand {
             }
         }
         System.out.printf("total: total_ms=%d, patterns(last part)=%d, heap_peak=%.1f MB%n", totalMs, lastPatterns, peakHeapMb);
+        CliSupport.printPatterns(lastResult.patterns());
         return 0;
     }
 }

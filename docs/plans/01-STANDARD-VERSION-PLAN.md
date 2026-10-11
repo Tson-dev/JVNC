@@ -99,17 +99,19 @@ mở trong `dhopm-common`**, không chạm nội bộ thuật toán.
 
 | Lệnh | Ý nghĩa V1 |
 |---|---|
-| `mine` | Xuất tóm tắt ngắn (mặc định khi gọi `Main --dataset …` như cũ) |
-| `detail` | Chi tiết từng pha: nodes/entries/roots + ms + top-N mẫu theo DO (double đầy đủ) |
-| `stream` | Log thời gian thực: sự kiện load + tick mining (qua `ProgressAwareEngine`) |
+| `mine` | Xuất tóm tắt ngắn + **danh sách DOPs** (mặc định khi gọi `Main --dataset …` như cũ) |
+| `detail` | Chi tiết từng pha: nodes/entries/roots + ms + **DHO-List sau Reconstruction** (toàn bộ node, đánh dấu root `[R]` khi `support >= minSup − ε`) + top-N mẫu theo DO (double đầy đủ) |
+| `stream` | Log thời gian thực: sự kiện load + tick mining (`pattern:` real-time, dedup theo key) + **danh sách DOP** cuối; `--step` in `step DOP_CHECK`/`step UBDO`, `--detail 0/1/2` lọc mức log |
 | `golden` | Chạy TestKit TC1–TC8 báo PASS/FAIL |
 | `inspect` | Thống kê dataset/config không mining |
 
 > Các lệnh `window`, `validate`, `sweep` (mục 4.2 của plan tổng thể) là **đặc thù cửa sổ minOcc** ⇒ V1 chỉ chạy được `validate`/`window` ở chế độ thông báo (`minOcc = 0 ⇒ W = ∞`). Phần đầy đủ triển khai ở V2.
 
 API mở cho tool: `Engine`, `PhaseAwareEngine`+`PhaseListener` (3 pha), `ProgressAwareEngine`+
-`MiningProgressListener` (tiến trình thời gian thực), `TimedEngine`, getter chỉ đọc của
-`MiningEngine` (node/entry/root count, total, lastTid). Khi tắt listener → zero-overhead (P3).
+`MiningProgressListener` (tiến trình thời gian thực), **`StreamAwareEngine`+`MiningEventListener`**
+(`setMiningEventListener(listener, detail)`: real-time `PATTERN`, `--step` `DOP_CHECK`/`UBDO`),
+`TimedEngine`, getter chỉ đọc của
+`MiningEngine` (node/entry/root count, total, lastTid, `dhoListAfterReconstruction()`). Khi tắt listener → zero-overhead (P3).
 
 Option `--limit <n>` trên mọi lệnh đọc dataset: đọc **tối đa n giao dịch đầu** rồi dừng/mine
 (đọc lười, không nạp file 1M+ vào RAM) — cần cho kosarak ~1M tx; dataset nhỏ hơn n → đọc hết

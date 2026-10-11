@@ -295,6 +295,8 @@ Bảng trường hợp biên ở `00-OVERALL-PLAN.md` §6.4 (E1–E10) phải c�
 | Lệnh | Mục đích V2 |
 |---|---|
 | `mine`/`detail`/`stream`/`golden`/`inspect` | như V1, **cộng** thông tin cửa sổ trong output |
+| `detail` | như V1 + **DHO-List sau Reconstruction** (toàn bộ node, đánh dấu root `[R]` theo `minSup = ∂ × N_eff`) + cột `head=` |
+| `stream` | như V1 + dòng `window: W=… N_eff=… minSup=… Z=… evict=… live=… dead=…`; `--step` thêm `z=` trong `step UBDO` |
 | **`window`** | In bảng tra cứu `W(f,minOcc)`, `N_eff`, `minSup`, trần `Z(f,TL)`, miền `∂` khả thi — **không cần dataset** |
 | **`validate`** | Kiểm tra cấu hình, báo cảnh báo (minOcc quá lớn, ∂ ngoài miền, W vượt `maxWindow`) — trước khi chạy |
 | **`sweep`** | Quét nhiều tổ hợp `(minOcc, ∂, f)` → bảng kết quả (số DOP, runtime, memory, độ dài TB) |

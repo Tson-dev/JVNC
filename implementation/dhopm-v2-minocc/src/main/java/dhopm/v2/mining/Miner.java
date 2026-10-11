@@ -1,5 +1,7 @@
 package dhopm.v2.mining;
 
+import dhopm.common.contract.MiningEvent;
+import dhopm.common.contract.MiningEventListener;
 import dhopm.common.contract.Pattern;
 import dhopm.v2.dho.DHONode;
 
@@ -32,17 +34,21 @@ public final class Miner {
     /**
      * @param windowTruncated whether the finite-window bound {@code min(DUBO, Z)} is applied;
      *                        {@code false} ⇔ minOcc = 0 (paper mode) ⇔ V1 prune.
+     * @param listener        optional real-time event sink ({@code null} = no streaming)
+     * @param detail          step detail level: {@code < 0} = PATTERN only, {@code 0..2} = contract 6.4
      */
     public static Map<String, Pattern> mineRoot(List<DHONode> list, int start,
                                                 double f, double epsilon, double minSup, int tl,
-                                                boolean windowTruncated) {
-        return process(list, start, new String[0], 0, f, epsilon, minSup, tl, windowTruncated);
+                                                boolean windowTruncated,
+                                                MiningEventListener listener, int detail) {
+        return process(list, start, new String[0], 0, f, epsilon, minSup, tl, windowTruncated, listener, detail);
     }
 
     private static Map<String, Pattern> process(List<DHONode> list, int start,
                                                 String[] prefix, int prefixLen,
                                                 double f, double epsilon, double minSup, int tl,
-                                                boolean windowTruncated) {
+                                                boolean windowTruncated,
+                                                MiningEventListener listener, int detail) {
         Map<String, Pattern> results = new LinkedHashMap<>();
         for (int i = start; i < list.size(); i++) {
             DHONode node = list.get(i);
@@ -51,13 +57,21 @@ public final class Miner {
             }
 
             String[] items = extend(prefix, prefixLen, node.item());
-            if (node.doValue() >= minSup - epsilon) { // C4
-                results.putIfAbsent(canonicalKey(items), new Pattern(items, node.doValue(), node.tids()));
+            String key = canonicalKey(items);
+            double doValue = node.doValue();
+            boolean dopPassed = doValue >= minSup - epsilon; // C4
+            if (dopPassed) {
+                int[] tids = node.tids();
+                if (results.putIfAbsent(key, new Pattern(items, doValue, tids)) == null && listener != null) {
+                    listener.onEvent(MiningEvent.pattern(key, doValue, node.support(), tids));
+                }
             }
 
             DuboBound bound = DuboBound.compute(node, f, tl);
             double ub = windowTruncated ? Math.min(bound.dubo(), bound.zX()) : bound.dubo();
-            if (ub < minSup - epsilon) {
+            boolean ubPassed = ub >= minSup - epsilon;
+            emit(listener, detail, key, doValue, dopPassed, ub, bound.zX(), minSup, ubPassed);
+            if (!ubPassed) {
                 continue; // prune: do not expand this prefix
             }
 
@@ -73,10 +87,29 @@ public final class Miner {
                 }
             }
             if (!ncl.isEmpty()) {
-                results.putAll(process(ncl, 0, items, prefixLen + 1, f, epsilon, minSup, tl, windowTruncated));
+                results.putAll(process(ncl, 0, items, prefixLen + 1, f, epsilon, minSup, tl, windowTruncated,
+                        listener, detail));
             }
         }
         return results;
+    }
+
+    /**
+     * Emits step events (contract 6.4) when a detail level is requested:
+     * {@code 2} = accepted DOP, {@code 1} = + accepted prune, {@code 0} = + rejected cases.
+     */
+    private static void emit(MiningEventListener listener, int detail, String key,
+                             double doValue, boolean dopPassed, double ubdo, double z,
+                             double minSup, boolean ubPassed) {
+        if (listener == null || detail < 0) {
+            return;
+        }
+        if (dopPassed || detail == 0) {
+            listener.onEvent(MiningEvent.dopCheck(key, doValue, minSup, dopPassed));
+        }
+        if (detail <= 1 && (ubPassed || detail == 0)) {
+            listener.onEvent(MiningEvent.ubdo(key, ubdo, z, minSup, ubPassed));
+        }
     }
 
     private static String[] extend(String[] prefix, int prefixLen, String item) {

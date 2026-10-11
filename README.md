@@ -42,8 +42,8 @@ JVNC/
 ├── implementation/     Maven multi-module (Java 25)
 │   ├── pom.xml           parent
 │   ├── dhopm-common/     io · config · contract · util · TestKit (55 test)
-│   ├── dhopm-v1-standard/   V1 oracle (32 test) + CLI 5 lệnh
-│   ├── dhopm-v2-minocc/     V2 cửa sổ minOcc (18 test) + CLI 10 lệnh
+│   ├── dhopm-v1-standard/   V1 oracle (38 test) + CLI 5 lệnh
+│   ├── dhopm-v2-minocc/     V2 cửa sổ minOcc (24 test) + CLI 10 lệnh
 │   ├── dhopm-v3-optimized/  V3 tối ưu (28 test), build xanh
 │   ├── dhopm-cli/           Manager CLI/API — JSONL stdio + TCP :7079 (12 test, G5)
 │   └── dhopm-bench/         benchmark harness (V1/V2/V3)
@@ -68,7 +68,7 @@ run.bat
 
 Không cần chạy từng lệnh — script tự set `JAVA_HOME` rồi chạy toàn bộ test (`mvn test`).
 
-> ✅ **Trạng thái:** toàn reactor **145 test xanh** (55 common + 32 V1 + 18 V2 + 28 V3 + 12 CLI).
+> ✅ **Trạng thái:** toàn reactor **157 test xanh** (55 common + 38 V1 + 24 V2 + 28 V3 + 12 CLI).
 
 Tùy chọn truyền goal cho Maven (mặc định là `test`):
 

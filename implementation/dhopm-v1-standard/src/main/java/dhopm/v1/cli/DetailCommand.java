@@ -49,6 +49,8 @@ final class DetailCommand {
                         rec.phaseMs(Phase.CONSTRUCTION), rec.phaseMs(Phase.RECONSTRUCTION),
                         rec.phaseMs(Phase.MINING), rec.totalMs(), rec.peakHeapBytes() / 1048576.0);
 
+                CliSupport.printDhoList(engine.dhoListAfterReconstruction(), r.minSup());
+
                 List<Pattern> top = r.patterns().stream()
                         .sorted(Comparator.comparingDouble(Pattern::dampedOccupancy).reversed())
                         .limit(Math.min(p.top(), r.patterns().size()))
