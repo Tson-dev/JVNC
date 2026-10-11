@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.jvnc.dhopm</groupId>
+        <artifactId>dhopm-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>dhopm-cli</artifactId>
+    <name>DHOPM Manager CLI/API</name>
+    <description>
+        G5 CL/API gate (D6/D7/D45-D49): the single entry point FE/tooling use to schedule mining
+        and read results. Talks the JSON protocol contract (plans/08-FE-CONTRACT.md) over stdio
+        and TCP localhost:7079; is only a client of the public dhopm-common API. Does not touch the
+        mining hot path.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-v1-standard</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-v2-minocc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jvnc.dhopm</groupId>
+            <artifactId>dhopm-v3-optimized</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

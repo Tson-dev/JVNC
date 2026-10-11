@@ -2,6 +2,9 @@
 
 > **Nguồn:** `docs/reports/SYNTHESIS-REPORT.md`  
 > **Nguyên tắc:** Mỗi mốc **độc lập tạo ra giá trị** — dừng ở đâu cũng không phí. Ưu tiên **G2 (V2)** rồi **G5 (Manager CLI/API)** song song G3/G4.
+>
+> ⚠️ **Cập nhật 2026-10-11 (`D45`–`D49`) — tài liệu này đã lỗi thời một phần, ưu tiên `phases/P5-G5.md` khi mâu thuẫn:**
+> G1/G2/G3 đã xong; **G5 ưu tiên trước G4** (`D45`). Các mục ở bảng §1 được chốt lại: **C1** → cú pháp **Hybrid** (`D47`); **C3** → config **3 cấp `default < JSON < args`** (`D49`, **không YAML**); **C4** → **TCP `7079` + stdio** (`D46`); **C5** Recovery → **giữ bác bỏ** (`DECISIONS.md` §6); **C8** → contract chuẩn = `plans/08-FE-CONTRACT.md` (v0.2).
 
 ---
 
@@ -39,16 +42,16 @@
 
 ---
 
-### G5 — Manager CLI/API (`dhopm-cli`) — **SONG SONG G3/G4**
-**Thời gian:** 2 tuần MA1, 1 tuần MA2, 1 tuần MA3 | **Đầu vào:** V1/V2 Engine API ổn định | **Đầu ra:** Frontend tích hợp được
+### G5 — Manager CLI/API (`dhopm-cli`) — **ƯU TIÊN TRƯỚC G4 (`D45`)**
+**Thời gian:** 2 tuần MA1, 1 tuần MA2, 1 tuần MA3 | **Đầu vào:** V1/V2/V3 Engine API ổn định | **Đầu ra:** Frontend tích hợp được
 
 | Mốc | Nội dung | Tiêu chí kỹ thuật | Sản phẩm |
 |-----|----------|-------------------|----------|
-| **G5-MA0** | Chốt OP-1..OP-6, Protocol v1.0, thống nhất Tâm | Protocol doc hoàn chỉnh (§7 Plan 05), test vector JSONL, Tâm xác nhận `BackendClient` thay `TsonV1Bridge`. | `docs/plans/05-BACKEND-CLIAPI-PLAN.md` v1.0 (chốt), `docs/contract/PROTOCOL-v1.md` |
-| **G5-MA1** | Manager tối thiểu: `--json` + `serve`(TCP), Registry V1, `window`/`validate`, ParameterEcho | `--json mine` ≡ CLI text `mine`. `serve` TCP local port, JSONL. `window` khớp `WindowMathTest`. `validate` trả mã lỗi ổn định. Registry hardcode V1 (sẵn sàng thêm V2/V3/V4). | Module `dhopm-cli`, `ApiServer`, `CommandDispatcher`, `VersionRegistry`, `ParameterEcho` |
-| **G5-MA2** | JobManager + SessionManager + JobLedger (mức nhẹ) + ConfigStore | Fan-out request nhiều version → sub-jobs → gộp `perVersion`. Session lock tuần tự. JobLedger: status/lastTid/source → replay file. ConfigStore 3 cấp + `config get/set` validate canonical. | `JobManager`, `SessionManager`, `JobLedger`, `ConfigStore`, `config` command |
-| **G5-MA3** | Tích hợp Frontend (`javanc`) | Tâm thay `TsonV1Bridge` bằng `BackendClient` (theo Contract). Frontend hiển thị đúng kết quả qua Manager. Giữ `TamSimulationBridge` cho animation. | Frontend chạy được với backend |
-| **G5-MA4** | (Tuỳ chọn) Remote hoàn chỉnh, backpressure, quota OS | Chỉ khi có nhu cầu thực tế. Mở D38 mới nếu cần. | — |
+| **G5-MA0** ✅ | **Xong (2026-10-11):** chốt OP-1..OP-6 → `D45`–`D49`; protocol v0.2 | Contract `plans/08-FE-CONTRACT.md` v0.2 + test vector JSONL; Tâm xác nhận `BackendClient` thay `TsonV1Bridge` | `plans/08-FE-CONTRACT.md`, `phases/P5-G5.md` |
+| **G5-MA1** | Manager tối thiểu: `--json` + `serve` (**TCP `7079`** + stdio), Registry V1/V2/V3, `window`/`validate`, ParameterEcho | `--json mine` ≡ CLI text `mine`. `serve` mở TCP 7079, JSONL. `window` khớp `WindowMathTest`. `validate` trả mã lỗi ổn định. Registry hardcode V1–V4 (V4 khi có) | Module `dhopm-cli`, `ApiServer`, `CommandDispatcher`, `VersionRegistry`, `ParameterEcho` |
+| **G5-MA2** | JobManager + SessionManager + ConfigStore 3 cấp | Fan-out request nhiều version → sub-jobs → gộp `perVersion`. Session lock tuần tự. ConfigStore `default < JSON < args` + `config get/set/list` validate canonical. | `JobManager`, `SessionManager`, `ConfigStore`, `config` command |
+| **G5-MA3** | Tích hợp Frontend (`javanc`) | Tâm thay `TsonV1Bridge` bằng `BackendClient` (TCP 7079, theo Contract). FE hiển thị đúng kết quả qua Manager; **mirror** kết quả khi `isLog` (`D48`). Giữ `TamSimulationBridge` cho animation. | Frontend chạy được với backend |
+| **G5-MA4** | `ResultStore`/`fetch` + `--detail`/`stream --step` | Ghi `mine_<yy-MM-dd>_<NNN>.txt` (reset ngày) qua hàng đợi + thread riêng; `fetch <fileID>`. `--detail 0/1/2` cho `stream --step`. | `ResultStore`, `fetch`, `--detail` |
 
 ---
 

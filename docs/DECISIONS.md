@@ -3,8 +3,9 @@
 | Mục | Giá trị |
 |---|---|
 | **Document ID** | DHOPM-DEC-000 |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Status** | ✅ Nguồn chân lý cho mọi quyết định đã chốt |
+| **Cập nhật 1.2 (2026-10-11)** | Thêm **D45–D49** (ưu tiên G5 trước G4; **mở lại transport TCP 7079**; cấu trúc CLI Hybrid; lưu kết quả `isLog`/`fetch`; config 3 cấp) — **giải quyết `D34`/`D35`** và thay thế mục "Daemon TCP" ở §6 |
 | **Phạm vi** | Toàn bộ dự án DHOPM/DOPM (thuật toán, kiến trúc, tài liệu, quy trình) |
 | **Quy tắc** | Plan/SRS **không tự quyết lại** — chỉ trỏ về `D<n>` tương ứng. Quyết định mới **phải** được ghi ở đây trước khi áp dụng rộng. |
 
@@ -30,6 +31,11 @@
 | **D4** | Thread pool mặc định = `Runtime.availableProcessors()` | Tự động theo phần cứng; override qua CLI/config | ✅ |
 | **D5** | Input: **FIMI** (mặc định) + **text** (TC) + **ZIP**; `utility-FIMI` **planned** (D42) | Đủ cho test, benchmark, và mở khoá dataset của paper (`accidents.dat`) | ✅ |
 | **D14** | **Nơi chốt quyết định = `docs/DECISIONS.md`** (tài liệu này) | Tránh mâu thuẫn giữa các plan | ✅ |
+| **D45** | **Ưu tiên G5 (Manager CLI/API) trước G4 (V4 Extreme).** V4 **hoãn**, không bỏ. | V1/V2/V3 đã xong (G3: 121 test, V3 nhanh hơn V2 2.3–28×); tối ưu tiếp có lợi ích biên giảm, trong khi cổng giao tiếp G5 còn trống và đang chặn FE (D7) + app G6 | ✅ |
+| **D46** | **Transport FE↔BE = TCP `localhost:7079`**, BE chạy `serve` và **luôn mở cổng chờ `connect`**; FE chủ động dò (**localhost → LAN**), gửi `connect`, **xác thực Contract** rồi lưu địa chỉ; không có cổng/sai Contract ⇒ báo "không tìm thấy BE". **Giữ stdio JSONL** cho test/automation. | FE và BE chạy độc lập, có thể khác máy. **Thay thế** mục "Daemon TCP / remote LAN" ở §6; **giải quyết `D34`** | ✅ |
+| **D47** | **Cấu trúc CLI = Hybrid:** `<cmd> <dataset> <partial> <factor> <limit> [flags]`; `--minOcc` **bắt buộc**; mọi lệnh mining (`mine`/`detail`/`stream`) **luôn trả danh sách DOPs**; `stream` có cờ **`--step`** (mặc định real-time; `--step` = log từng bước); **`--detail 0/1/2`** (2 = chỉ DOP đạt; 1 = thêm UBDO/DO khi điều kiện đúng; 0 = log cả điều kiện sai). `step` **không** là lệnh riêng. | Hợp nhất 2 bản nháp + code hiện tại; giữ D28/D41; mode `log` để **sau**; **giải quyết `D35`** (bản nháp mới là chuẩn) | ✅ |
+| **D48** | **Lưu kết quả:** config **`isLog`** (mặc định) + cờ **`--export`** ghi đè; ghi `mine_<yy-MM-dd>_<NNN>.txt` trong `/mine/` (**`<NNN>`** 3 chữ số, **reset theo ngày**, BE cấp ID); writer đơn giản dùng **hàng đợi + thread riêng** (không chặn worker mining); BE có lệnh **`fetch`** cho FE tải nội dung file; **FE bắt buộc lưu bản sao cục bộ** khi `isLog`. | Bảo toàn kết quả khi FE/BE độc lập; theo 2 bản nháp | ✅ |
+| **D49** | **Config interface 3 cấp:** `default (built-in) < file JSON (thư mục cấu hình người dùng) < CLI args`; lệnh **`config get/set/list`**. | Cho phép đặt `isLog`/đích lưu mặc định mà không phải gõ cờ mỗi lần | ✅ |
 
 ---
 
@@ -98,6 +104,8 @@ Nguồn ý tưởng: **`docs/Draft Idea.txt`** (tác giả). Chuẩn hoá tại 
 | **D36** | Có làm **utility-based (HUIM)** không? | Nếu có ⇒ **tách project ngay**, không trộn | Phạm vi lớn nhất còn lại |
 | **D37** | Có đưa kết quả ra ngoài (báo cáo/hội thảo) không? | Nên — đó là lý do để làm R5/R6 | Mức đầu tư |
 
+> **Đã giải quyết (2026-10-11):** `D34` → **D46** (FE có thể chạy máy khác ⇒ TCP 7079). `D35` → **D47** (bản nháp mới là chuẩn; cập nhật `Document/CLI/**` theo).
+
 ---
 
 ## 6. Quyết định đã bác bỏ
@@ -111,6 +119,8 @@ Nguồn ý tưởng: **`docs/Draft Idea.txt`** (tác giả). Chuẩn hoá tại 
 | **FE10 "bật/tắt C1–C12 lúc chạy"** như tính năng chính | Phạm vi rất lớn, dễ tạo kết quả phi chuẩn gây nhầm lẫn. Giữ ở dạng bảng tham số nâng cao |
 | **Đổi tên `Z` → giữ nguyên như `Draft Idea.txt`** | Sẽ trùng với `Z(f,TL)` (trần DO). Xem D21 |
 | **Chạy 10 dataset nặng trong `mvn test`** | Tách sang profile `-Pheavy` |
+
+> ⚠️ **Đã mở lại (2026-10-11):** mục **"Daemon TCP / remote LAN"** (trước đây bác bỏ vì "chưa có nhu cầu; stdio đủ") nay được **thay thế bởi `D46`** — chốt dùng **TCP `localhost:7079` + khám phá LAN**, vì FE và BE chạy **độc lập, có thể khác máy**. Giữ nguyên các mục đã bác bỏ khác.
 
 ---
 

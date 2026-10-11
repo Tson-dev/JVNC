@@ -86,10 +86,10 @@ JVNC/
 ├── docs/
 │   ├── Readme.md            ⬅ tài liệu này (tóm tắt tổng thể)
 │   ├── Overview.md          cổng vào cũ (một phần đã lỗi thời)
-│   ├── DECISIONS.md         ⭐ sổ quyết định (ADR D1–D44) — nguồn chân lý
-│   ├── plans/               00 tổng thể, 01–04 theo phiên bản, 05 CLI/API, 06 draft
+│   ├── DECISIONS.md         ⭐ sổ quyết định (ADR D1–D49) — nguồn chân lý
+│   ├── plans/               00 tổng thể, 01–04 theo phiên bản, 05 CLI/API, 07–08 G5 (phân tích + contract)
 │   ├── srs/                 DHOPM-SRS, DHOPM-UI-LAYOUT
-│   ├── phases/              P0–P3 (kế hoạch từng giai đoạn)
+│   ├── phases/              P0–P5 (kế hoạch từng giai đoạn; P5 = G5)
 │   ├── reports/             G1, G2, SYNTHESIS, + báo cáo so sánh V1–V2–V3
 │   ├── root/                paper + bảng chạy tay TC (mốc, không sửa)
 │   └── Draft Idea.txt       ý tưởng minOcc của tác giả
@@ -139,6 +139,7 @@ CLI: V1 5 lệnh (`mine/detail/stream/golden/inspect`); V2 10 lệnh (thêm `win
 | Kết quả G1 (V1) | `reports/G1-V1-STANDARD-BAOCAO.md` |
 | Kết quả G2 (V2) | `reports/G2-V2-MINOCC-BAOCAO.md` |
 | Kết quả G3 (V3) | `reports/G3-V3-OPTIMIZED-BAOCAO.md` |
+| **G5 (kế hoạch + hợp đồng FE)** | `phases/P5-G5.md` · `plans/08-FE-CONTRACT.md` · `plans/07-G5-PIVOT-ANALYSIS.md` |
 | **So sánh tối ưu V1–V2–V3 + mâu thuẫn** | `reports/V1-V2-V3-OPTIMIZATION-COMPARISON.md` |
 | Làm tiếp gì | `phases/` + `plans/00` §8 |
 
@@ -150,6 +151,7 @@ CLI: V1 5 lệnh (`mine/detail/stream/golden/inspect`); V2 10 lệnh (thêm `win
 - **V2 là mốc giá trị thực đã đo:** ~10–17× nhanh hơn V1 trên ablation, biến "87–300 s ra rỗng" thành ∅ tức thì.
 - **V3 đã đạt tính đúng:** bit-for-bit với V1 (paper) và V2 (window), deterministic theo số luồng; **tối ưu rõ rệt** — nhanh hơn V2 **2.3–2.9×** (thưa/∂=0.01) và **4.5–28×** (dày/∂=0.05), heap thấp hơn. Chi tiết: `reports/V1-V2-V3-OPTIMIZATION-COMPARISON.md`.
 - **Tài liệu trạng thái đã đồng bộ:** README gốc / Overview / SYNTHESIS đã cập nhật theo thực tế 121 test và trạng thái các phiên bản.
+- **Hướng tiếp theo (2026-10-11):** **G5 (Manager CLI/API) ưu tiên trước G4** (`D45`); phạm vi G5 + hợp đồng FE đã chốt (`D46`–`D49`): transport **TCP `7079`** + stdio, CLI **Hybrid**, lưu file `isLog`/`fetch`, config 3 cấp. Kế hoạch: `phases/P5-G5.md`; contract: `plans/08-FE-CONTRACT.md`.
 
 ---
 

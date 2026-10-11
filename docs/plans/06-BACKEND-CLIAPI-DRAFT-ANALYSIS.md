@@ -15,7 +15,7 @@
 > | **Recovery** (SYS-A) / ledger phiên chạy | ⛔ **Bác bỏ** — sau cửa sổ minOcc một lần `mine` chỉ vài giây; replay construction vẫn khả dụng (INV-A/B) |
 > | **JobManager / worker thật** (FLOW-C) | ⛔ **Để sau** — đã đồng bộ hoá đơn luồng (INV-E); không cần tách vai |
 > | **`ResourceManager` → native Windows/macOS** (CLI-E, SYS-B, MA4) | ⛔ **Bác bỏ** (D8) — dùng `workers` / `limit` / `parts` là đủ |
-> | **Daemon TCP / remote LAN** (FLOW-A) | ⛔ **Bác bỏ** — chưa có nhu cầu; JSONL qua stdio là đủ (D34 đang cân nhắc) |
+> | **Daemon TCP / remote LAN** (FLOW-A) | ✅ **Mở lại 2026-10-11** theo **`D46`** — chốt **TCP `localhost:7079`** + giữ stdio (FE/BE chạy độc lập, có thể khác máy) |
 > | **Bộ lệnh chuẩn** `mine/detail/stream/golden/inspect` | ✅ **Giữ** (D27), nay thêm `window/validate/sweep` |
 > | **API ổn định ở `dhopm-common`, CLI là client** (D6) | ✅ **Giữ và đã chốt** |
 > | **4 phiên bản** V1–V4 | ✅ **Giữ** (D13) — bản nháp này viết khi còn "3 version" |

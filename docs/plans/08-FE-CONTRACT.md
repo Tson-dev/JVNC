@@ -1,36 +1,36 @@
-# DHOPM — Đề xuất Hợp đồng Frontend ↔ Backend (FE Contact)
+# DHOPM — Hợp đồng Frontend ↔ Backend (FE Contact)
 
 > **Bản chất tài liệu:** đây là **hợp đồng giao thức (protocol contract)** giữa **Backend (BE)** — project `JVNC` (`Tson-dev/JVNC`) — và **các client Frontend (FE)**. Đây là **ranh giới duy nhất** được phép vượt qua để FE lấy kết quả từ BE; FE **không** import `dhopm.*`, **không** phụ thuộc jar backend (D7 / F1 / F2).
 >
 > **Đối tượng đọc:** tác giả FE (Tâm — `2312441-sudo/javanc`), tác giả BE (Sơn), và người viết app G6.
 >
-> **Đọc kèm:** `DECISIONS.md` (D6, D7, D20, D27, D28, D34, D38, D41) · `plans/00-OVERALL-PLAN.md` §2 & §4.3 · `plans/05-BACKEND-CLIAPI-PLAN.md` (chiến lược) · `phases/P5-G5.md` (kế hoạch G5).
+> **Đọc kèm:** `DECISIONS.md` (D6, D7, D20, D27, D28, D38, D41, **D45–D49**) · `plans/00-OVERALL-PLAN.md` §2 & §4.3 · `plans/05-BACKEND-CLIAPI-PLAN.md` · `phases/P5-G5.md` · `plans/07-G5-PIVOT-ANALYSIS.md` · `plans/Draft FE Contact.txt` · `plans/Draft mining comment.txt`.
 
 ## Document Header
 
 | Mục | Giá trị |
 |---|---|
 | **Document ID** | DHOPM-PLAN-008 |
-| **Version** | 0.1 (Draft — chờ chốt transport `D34`) |
+| **Version** | 0.2 (Draft) |
 | **Contract version** | `protocol 1` (mỗi request ghi `"v":1`) |
-| **Trạng thái** | 🕔 Draft — chưa code; dùng làm **đặc tả bàn giao** cho FE |
+| **Trạng thái** | 🕔 Draft — các quyết định transport/CLI/lưu-file/config đã chốt (D45–D49); chờ code |
 
 ### Revision History
 
 | Phiên bản | Mô tả |
 |---|---|
-| 0.1 | Tạo mới: chốt danh sách client, ràng buộc, mô hình dữ liệu, bộ lệnh + input/output, mã lỗi, ví dụ, tiêu chí test |
+| 0.1 | Tạo mới: danh sách client, ràng buộc, mô hình dữ liệu, bộ lệnh, mã lỗi. Transport mặc định **stdio**, TCP để ngỏ |
+| **0.2** | Chốt theo **D45–D49**: **transport TCP `localhost:7079`** (BE `serve` luôn mở cổng, FE dò localhost→LAN + `connect`/`hello`) + giữ stdio; **CLI Hybrid** (`<dataset> <partial> <factor> <limit>` + `--minOcc` bắt buộc); `stream --step` + `--detail 0/1/2`; **lưu kết quả `isLog`/`--export`**, file `mine_<yy-MM-dd>_<NNN>.txt` (NNN reset ngày), lệnh **`fetch`**, **FE bắt buộc mirror**; **config 3 cấp** `default < JSON < args` |
 
 ---
 
 ## 1. Mục đích & phạm vi
 
-- Định nghĩa **API contact** (bộ lệnh + schema JSON) để FE giao việc và lấy kết quả từ BE.
-- Liệt kê **các client (FE)** tương tác với BE và vai trò từng client.
-- Ghi rõ **ràng buộc** (bất biến hợp đồng) và **input/output** từng lệnh.
+- Định nghĩa **bộ lệnh + schema JSON** để FE giao việc và lấy kết quả từ BE.
+- Liệt kê **các client (FE)**, **ràng buộc**, **mô hình dữ liệu**, **transport**, **lưu/đọc kết quả**, **mã lỗi**.
 - **Không** mô tả cài đặt nội bộ thuật toán (không đổ interface Java ra ngoài).
 
-**Ngoài phạm vi:** giao diện/UX của FE; chi tiết tối ưu V3/V4; quản lý tài nguyên cấp OS.
+**Ngoài phạm vi:** giao diện/UX của FE; chi tiết tối ưu V4; quản lý tài nguyên cấp OS.
 
 ---
 
@@ -45,27 +45,28 @@
 └───────────────┬────────────────────────────────────────┘
                 │  JSON theo HỢP ĐỒNG NÀY (không share class Java)
                 ▼
-      ┌───────────────────────────────────────────┐
-      │  Manager CLI/API  (dhopm-cli) — D6/D7      │  ← ĐIỂM VÀO DUY NHẤT
-      │  VersionRegistry · JobManager ·            │
-      │  ResultAggregator · SessionManager ·       │
-      │  ParameterEcho · CommandDispatcher         │
-      └───────────────┬───────────────────────────┘
-                      │ chỉ dùng API dhopm-common (in-process)
-                      ▼
-      [ V1 ]  [ V2 ]  [ V3* ]  [ V4* ]     (* khi hoàn thiện)
+   ┌────────────────────────────────────────────┐
+   │  Manager CLI/API  (dhopm-cli) — D6/D7       │  ← ĐIỂM VÀO DUY NHẤT
+   │  CommandDispatcher · VersionRegistry ·      │
+   │  JobManager · ResultAggregator ·            │
+   │  SessionManager · ParameterEcho ·           │
+   │  ResultStore                                │
+   └───────┬───────────────────────────┬─────────┘
+           │ stdio JSONL (test/CI)     │ TCP :7079 (FE runtime) + stdio
+           ▼                           ▼
+   [ V1 ] [ V2 ] [ V3 ] [ V4* ]     BE mở cổng chờ `connect` từ FE
 ```
 
 ### 2.2 Danh sách client
 
 | ID | Client | Repo / vị trí | Vai trò | Có phải FE không |
 |---|---|---|---|---|
-| **C1** | **JavaFX Visualizer** (`javanc`) | `2312441-sudo/javanc` (clone `D:\JVNC\JVNC Tam\javanc`) | Chạy mining, hiển thị DHO-List/cây DFS/biểu đồ DO, mô phỏng stream | ✅ FE chính |
-| **C2** | **`dhopm-app`** (debug/compare app) | module trong repo BE (G6) | Chọn ≥1 engine, so sánh, debug — nhưng nằm **cùng repo** BE | ⚠️ client nội bộ (vẫn dùng hợp đồng này) |
-| **C3** | **Automation/CLI + CI** | `dhopm-bench`, script benchmark, GitHub Actions | Chạy lô, thu CSV/JSON, test hồi quy | ❌ tool (client hợp đồng) |
+| **C1** | **JavaFX Visualizer** (`javanc`) | `2312441-sudo/javanc` | Chạy mining, hiển thị DHO-List/cây DFS/biểu đồ DO, mô phỏng stream | ✅ FE chính |
+| **C2** | **`dhopm-app`** (debug/compare app) | module trong repo BE (G6) | Chọn ≥1 engine, so sánh, debug | ⚠️ client nội bộ (vẫn dùng hợp đồng này) |
+| **C3** | **Automation/CLI + CI** | `dhopm-bench`, script, GitHub Actions | Chạy lô, thu CSV/JSON, test hồi quy | ❌ tool (dùng **stdio**) |
 | **C4** | `TamSimulationBridge` (FE) | trong `javanc` | Engine demo nội bộ để animation step-by-step | ❌ **không** phải client BE — giữ nguyên |
 
-> **Quy tắc chốt:** C1/C2/C3 nói chuyện với BE **chỉ** qua hợp đồng này. `TamSimulationBridge` (C4) là demo nội bộ, **không** gọi BE — giữ nguyên.
+> **Quy tắc chốt:** C1/C2/C3 nói chuyện với BE **chỉ** qua hợp đồng này. `TamSimulationBridge` (C4) là demo nội bộ, **không** gọi BE.
 
 ---
 
@@ -76,21 +77,21 @@
 | R1 | FE **không** import `dhopm.*`, **không** Maven-dependency vào module BE, **không** biết `TsonV1Bridge`/`MiningEngine` | D7 / F1 |
 | R2 | Giao tiếp **chỉ** qua Manager; hợp đồng = **đặc tả này**, không share class Java | D7 / F2 |
 | R3 | **Mọi request khai phá phải khai báo tường minh `partial` (∂), `f`, `minOcc`**; thiếu ⇒ `MISSING_PARAMETER`. Manager **không** lấy mặc định thư viện thay FE | D28 / D41 |
-| R4 | Giá trị số thực truyền **double đầy đủ** (không làm tròn khi truyền; chỉ làm tròn khi hiển thị) | C4 |
+| R4 | Giá trị số thực truyền **double đầy đủ** (không làm tròn khi truyền) | C4 |
 | R5 | Pattern là **tập item**; so sánh/hiển thị theo `canonicalKey` (item sắp tự nhiên, nối `,`) | C6 |
 | R6 | `minSup = ∂ × N_eff`, `N_eff = min(TL, W)` — **2 pha**; response trả `minSup` **đã dùng** | C9 / D11 |
 | R7 | Danh tính kết quả = `(∂, f, minOcc, TL)`. **So sánh nhiều version bắt buộc cùng bộ tham số**; khác ⇒ `MISMATCHED_WINDOW_CONFIG`, **không gộp** | C12 / D20 |
 | R8 | `window.size = null` ⇔ `W = ∞` (chế độ `minOcc = 0` hoặc `f = 1`) | D10 |
-| R9 | **Không** quyết định `D45`/transport ở tầng FE: nếu transport đổi, **chỉ** đổi kênh, không đổi schema | kế hoạch G5 |
+| R9 | **Transport chuẩn = TCP `localhost:7079`** (FE runtime) + **stdio JSONL** (test/CI). Đổi kênh **không** đổi schema | D46 |
 | R10 | Protocol **chỉ thêm** field/cmd khi nâng version; **không bỏ** field cũ (backward compatible) | plan `05` §12 |
 | R11 | Kết quả phải **deterministic**: cùng request ⇒ cùng kết quả (bất kể worker) | INV-E / C5 |
 | R12 | Manager là **client của API `dhopm-common`**; hot path thuật toán **không đổi** | D6 / P5 |
+| R13 | Mọi lệnh mining **luôn trả danh sách DOPs** (chỉ khác cách trình bày) | D47 |
+| R14 | Khi **`isLog` = true** (hoặc có `--export`), BE ghi file kết quả và FE **phải lưu bản sao cục bộ** để không phụ thuộc BE | D48 |
 
 ---
 
 ## 4. Mô hình dữ liệu chung (wire model)
-
-Tất cả số thực là JSON number (double). TID là số nguyên dương tăng nghiêm ngặt (INV-A).
 
 ### 4.1 Transaction
 
@@ -98,16 +99,16 @@ Tất cả số thực là JSON number (double). TID là số nguyên dương t�
 { "tid": 7, "items": ["A","E"] }
 ```
 
-- `items`: mảng chuỗi; trùng → chuẩn hoá về tập phân biệt; rỗng/độ dài 0 → **loại từ khi nhập**.
+- `items`: mảng chuỗi; trùng → chuẩn hoá về tập phân biệt; rỗng → **loại từ khi nhập**.
 
-### 4.2 Config (tham số khai phá)
+### 4.2 Config (tham số khai phá — bắt buộc)
 
 | Field | Kiểu | Miền | Ghi chú |
 |---|---|---|---|
-| `partial` | number | `[0,1]` | `∂` — tỉ lệ ngưỡng trên `N_eff` |
+| `partial` | number | `[0,1]` | `∂` |
 | `f` | number | `(0,1]` | hệ số suy giảm |
-| `minOcc` | number | `[0,1)` | ngưỡng cửa sổ; `0` ⇒ paper |
-| `epsilon` | number | `>0` | sai số so sánh, mặc định `1e-9` |
+| `minOcc` | number | `[0,1)` | ngưỡng cửa sổ; `0` ⇒ paper. **Bắt buộc** |
+| `epsilon` | number | `>0` | mặc định `1e-9` |
 | `workers` | int | `≥1` | mặc định = số CPU (D4) |
 
 ### 4.3 Pattern (kết quả)
@@ -115,252 +116,347 @@ Tất cả số thực là JSON number (double). TID là số nguyên dương t�
 | Field | Kiểu | Ghi chú |
 |---|---|---|
 | `items` | string[] | thứ tự theo `canonicalKey` khi hiển thị |
-| `key` | string | `canonicalKey` = items sắp tự nhiên nối `,` |
-| `do` | number | `dampedOccupancy` — giá trị DO |
-| `support` | int | = `tids.length` (số transaction **còn sống** chứa X) |
-| `tids` | int[] | TID tăng dần (có thể rỗng nếu không cần) |
+| `key` | string | `canonicalKey` |
+| `do` | number | `dampedOccupancy` |
+| `support` | int | `tids.length` (số transaction **còn sống** chứa X) |
+| `tids` | int[] | TID tăng dần (có thể rỗng) |
 
-### 4.4 WindowInfo (trạng thái cửa sổ)
+### 4.4 WindowInfo
 
 | Field | Kiểu | Ghi chú |
 |---|---|---|
 | `size` | long \| null | `W(f,minOcc)`; **`null` = ∞** |
 | `effective` | long | `N_eff = min(TL, W)` |
 | `minSup` | number | ngưỡng hiệu dụng tại `mineNow` |
-| `maxDO` | number | `Z(f,TL)` — trần DO |
-| `evictions` | long | tổng số transaction bị evict (tích luỹ) |
-| `liveEntries` | long | tổng entry sống tại thời điểm mine |
-| `deadEntries` | long | tổng entry chết (prefix) |
+| `maxDO` | number | `Z(f,TL)` |
+| `evictions` | long | tổng evict (tích luỹ) |
+| `liveEntries` | long | tổng entry sống |
+| `deadEntries` | long | tổng entry chết |
 
 ### 4.5 Issue (cảnh báo/lỗi cấu hình)
 
+```jsonc
+{ "severity":"WARNING", "code":"INFEASIBLE_PARTIAL", "message":"..." }
+```
+
+### 4.6 SavedFile (kết quả lưu)
+
 | Field | Kiểu | Ghi chú |
 |---|---|---|
-| `severity` | `"ERROR"` \| `"WARNING"` | |
-| `code` | string | **mã ổn định** (mục 7) |
-| `message` | string | thông điệp **có số liệu** (để hiển thị) |
+| `fileID` | string | `<yy-MM-dd>_<NNN>`, ví dụ `26-10-11_001` |
+| `path` | string | đường dẫn đầy đủ, ví dụ `/mine/mine_26-10-11_001.txt` |
 
-### 4.6 Envelope response
+### 4.7 Envelope response
 
 ```jsonc
-{ "id": 1, "v": 1, "ok": true,  ... }                       // thành công
+{ "id": 1, "v": 1, "ok": true,  ... }                              // thành công
 { "id": 1, "v": 1, "ok": false, "code": "...", "message": "..." }  // lỗi
 ```
 
 ---
 
-## 5. Bộ lệnh & input/output
+## 5. Transport & mô hình vận hành
 
-Bộ lệnh = **đúng bộ lệnh chuẩn D27** + quản trị + phiên. Tất cả nhận `(∂, f, minOcc)` **bắt buộc** (trừ `info`/`version`/`window`/`validate` khi không có dataset — xem ghi chú).
+### 5.1 Hai kênh
 
-### 5.1 Bảng tổng
-
-| Lệnh | Mục đích | Bắt buộc | Trả về |
+| Kênh | Cách dùng | Khi nào | Trạng thái |
 |---|---|---|---|
-| `mine` | chạy khai phá, trả tập DOP | `(∂,f,minOcc)` + (`dataset` hoặc `session`) | `result[]` + `window` + `jobs[]` |
-| `detail` | debug chi tiết (node/entry/roots, top-N theo DO) | như `mine` | `mine` + `stats` |
-| `stream` | log thời gian thực (load + progress ticks) | như `mine` | dòng `progress` rồi `result` |
-| `golden` | chạy TestKit TC1–TC18 | — | `cases[]` (pass/fail) |
-| `inspect` | thống kê dataset/config, **không** mining | `dataset` | `dataset` + `config` |
-| `window` | tra cứu cửa sổ (**không** cần dataset) | `f`(,`minOcc`) | `window`, `maxDOAsymptotic`, `maxPartialAsymptotic` |
-| `validate` | kiểm tra cấu hình trước khi chạy | `(∂,f,minOcc)` | `issues[]` |
-| `sweep` | quét tổ hợp `(∂,f,minOcc)` | `dataset` + danh sách | bảng `rows[]` |
-| `info` | manifest **tĩnh** của Manager | — | `commands[]`, `versions[]`, `protocol` |
-| `version` | phiên bản Manager/JDK | — | `manager`, `jdk`, `os` |
-| `session.create` | tạo phiên stream | `(∂,f,minOcc)` | `session` |
-| `feed` | nạp transaction vào phiên | `session` + `transactions[]` | `loaded`, `lastTid`, `window` |
-| `session.mine` | mine trên phiên | `session` (+ `versions`) | như `mine` |
+| **TCP `localhost:7079`** | BE chạy `serve`, **luôn mở cổng chờ**; mỗi kết nối = JSONL | FE runtime (C1), app (C2) — kể cả **khác máy** | ✅ **chuẩn (D46)** |
+| **stdio JSONL** | `Manager <command> --json` hoặc tiến trình `serve` over stdio | test/automation/CI (C3) | ✅ giữ nguyên |
 
-### 5.2 `mine` — input
+### 5.2 Luồng khám phá & kết nối (FE → BE)
 
-```jsonc
-{
-  "id": 1, "v": 1, "cmd": "mine",
-  "dataset": "retail.dat", "format": "fimi",
-  "partial": 0.06, "f": 0.9, "minOcc": 1e-6, "epsilon": 1e-9,
-  "workers": 8, "parts": 5, "limit": 0,
-  "versions": ["v1","v2"]
-}
+```
+[FE] bấm nút "Detect BE"
+   │
+   ├─(1) thử connect 127.0.0.1:7079  ──thành công──┐
+   │                                                │
+   ├─(2) nếu (1) thất bại → quét LAN tìm cổng 7079 ─┤
+   │                                                ▼
+   │                     gửi {"cmd":"hello","v":1} tới địa chỉ tìm được
+   │                                                │
+   │   ┌── phản hồi hợp lệ (protocol khớp) ─────────┴─→ lưu địa chỉ, chính thức kết nối
+   │   │
+   │   └── không phản hồi / sai Contract → coi như "không tìm thấy"
+   │
+   └─ nếu cả localhost và LAN đều không có → FE hiển thị "Không tìm thấy BE"
 ```
 
-| Field | Ý nghĩa |
+- BE **chủ động mở** cổng 7079 khi chạy `serve` (ràng buộc phía BE — D46), **không** chờ FE khởi động.
+- FE/BE **khởi động độc lập**; địa chỉ BE được **FE lưu lại** sau khi handshake thành công.
+
+### 5.3 Handshake `hello`
+
+```jsonc
+// FE → BE
+{"id":1,"v":1,"cmd":"hello"}
+// BE → FE
+{"id":1,"v":1,"ok":true,"protocol":1,"manager":"dhopm-cli",
+ "versions":[{"id":"v1","status":"ready"},{"id":"v2","status":"ready"},
+             {"id":"v3","status":"ready"},{"id":"v4","status":"pending"}],
+ "commands":["mine","detail","stream","window","validate","inspect","golden",
+             "sweep","info","version","config","fetch","session.create","feed","session.mine"]}
+```
+
+- Nếu `hello.protocol` trả về khác ⇒ BE/FE **không tương thích** ⇒ FE coi như **không tìm thấy**.
+
+### 5.4 Quy tắc kênh
+
+- **`id`** đồng bộ request → progress/event → response (bắt buộc trong `serve`/TCP).
+- **Progress/window/step event** là dòng JSON có `event`; client có thể bỏ qua.
+- Một **session** xử lý **tuần tự**; nhiều session song song.
+- **Không auth** ở `protocol 1` (LAN nội bộ — rủi ro chấp nhận; ghi rõ nếu mở rộng).
+
+---
+
+## 6. Cú pháp CLI & bộ lệnh (Hybrid — D47)
+
+### 6.1 Cú pháp chung
+
+```
+<cmd> <dataset> <partial> <factor> <limit> [flags]     ← lệnh khai phá
+```
+
+- **Positional bắt buộc (lệnh khai phá):** `<dataset> <partial> <factor> <limit>` (`limit = 0` nghĩa là đọc hết).
+- **Flag bắt buộc:** `--minOcc <x>` (D28/D41).
+- **Flag tùy chọn:** `--workers <n>` · `--format fimi|text|zip` · `--parts <n>` · `--export [<path>]` · `--detail 0|1|2` · `--step`.
+- JSON (`serve`/TCP) dùng khoá tương ứng (`dataset/partial/f/minOcc/limit/...`), positional chỉ là hình thức CLI.
+
+### 6.2 Bảng lệnh
+
+| Nhóm | Lệnh | Cú pháp rút gọn | Trả về |
+|---|---|---|---|
+| Khai phá | `mine` | `mine <dataset> <∂> <f> <limit> --minOcc <x>` | `patterns[]` + `window` |
+| Khai phá | `detail` | như `mine` | `mine` + `stats` (window/roots/entries) |
+| Khai phá | `stream` | như `mine` `[--step] [--detail 0/1/2]` | dòng `event` rồi kết quả |
+| Kiểm tra | `inspect` | `inspect <dataset>` | thống kê dataset (không mining) |
+| Kiểm tra | `golden` | `golden` | `cases[]` (TC1–TC18) |
+| Cửa sổ | `window` | `window <f> --minOcc <x> [--tl <long>]` | `window`, `maxDO*`, `maxPartial*` |
+| Cửa sổ | `validate` | `validate <∂> <f> --minOcc <x> [--tl <long>]` | `issues[]` |
+| Cửa sổ | `sweep` | `sweep <dataset> --f <f> --partials <list> --minOccs <list> [--versions <list>]` | `rows[]` |
+| Quản trị | `info` / `version` | `info` / `version` | manifest tĩnh / phiên bản |
+| Quản trị | `config` | `config get <k>` · `config set <k> <v>` · `config list` | giá trị config |
+| File | `fetch` | `fetch <fileID>` | nội dung file |
+| Phiên | `session.create` / `feed` / `mine` | (JSON) | session + kết quả |
+| Vận hành | `serve` | `serve` | mở cổng 7079 (TCP) + stdio |
+
+### 6.3 Kết quả mining luôn có DOPs (D47)
+
+- `mine` trả **danh sách DOPs** (kèm `window`); **không** chỉ in số.
+- `detail` = `mine` + thông tin nền (window dùng để mining, roots, entries/phase ms).
+- `stream` mặc định xuất **mỗi pattern khi đạt** (real-time); `--step` xuất **log từng bước**.
+
+### 6.4 `--detail` (chỉ dùng cho `stream --step`)
+
+| Mức | Ghi lại |
 |---|---|
-| `dataset` + `format` | nguồn dữ liệu (`fimi` \| `text`); hoặc dùng `session` thay thế |
-| `partial`/`f`/`minOcc`/`epsilon` | bắt buộc (R3) |
-| `workers` | số worker (tùy chọn) |
-| `parts` | chia dataset thành N phần incremental (tùy chọn) |
-| `limit` | đọc tối đa N transaction đầu (0 = hết) |
-| `versions` | danh sách version cần chạy (≥1) |
+| `--detail 2` | Chỉ khi một pattern **đạt DOP** |
+| `--detail 1` | Thêm **UBDO/DO khi mở rộng** (chỉ khi điều kiện đúng) |
+| `--detail 0` | Thêm **cả điều kiện sai** (log gần như toàn bộ) |
 
-### 5.3 `mine` — output
+> Mode `log` (superset, tốn tài nguyên nhất) **để sau** (D47).
+> Giai đoạn **construction/reconstruction không log** (đã có `window` thay thế).
+
+---
+
+## 7. Bộ lệnh khai phá — input/output
+
+### 7.1 `mine`
 
 ```jsonc
-{
-  "id": 1, "v": 1, "ok": true,
-  "config": {"partial":0.06,"f":0.9,"minOcc":1e-6,"epsilon":1e-9,"workers":8},
-  "totalTransactions": 88162, "lastTid": 88162,
-  "minSup": 9.18, "maxDO": 10.0,
-  "window": {"size":153,"effective":153,"minSup":9.18,"maxDO":10.0,
-             "evictions":87981,"liveEntries":12045,"deadEntries":0},
-  "issues": [ {"severity":"WARNING","code":"INFEASIBLE_PARTIAL","message":"..."} ],
-  "jobs": [
-    {"version":"v1","engine":"v1-standard","total_ms":91234,"patterns":0,
-     "patterns_list":[]},
-    {"version":"v2","engine":"v2-minocc","total_ms":1800,"patterns":0,
-     "patterns_list":[]}
-  ],
-  "perVersion": {
-    "v1": {"patterns":[],"window":{"size":null,"effective":88162,"minSup":5289.72,"maxDO":10.0}},
-    "v2": {"patterns":[],"window":{"size":153,"effective":153,"minSup":9.18,"maxDO":10.0}}
-  }
-}
+{ "id":2,"v":1,"cmd":"mine","dataset":"retail.dat","format":"fimi",
+  "partial":0.06,"f":0.9,"minOcc":1e-6,"limit":0,
+  "workers":8,"parts":5,"versions":["v1","v2","v3"],"export":true }
+```
+```jsonc
+{ "id":2,"v":1,"ok":true,
+  "config":{"partial":0.06,"f":0.9,"minOcc":1e-6,"epsilon":1e-9,"workers":8},
+  "totalTransactions":88162,"lastTid":88162,"minSup":9.18,"maxDO":10.0,
+  "window":{"size":153,"effective":153,"minSup":9.18,"maxDO":10.0,
+            "evictions":87981,"liveEntries":12045,"deadEntries":0},
+  "issues":[{"severity":"WARNING","code":"INFEASIBLE_PARTIAL","message":"..."}],
+  "jobs":[{"version":"v2","engine":"v2-minocc","total_ms":1800,"patterns":0}],
+  "patterns":[],
+  "perVersion":{"v2":{"patterns":[],"window":{"size":153,"effective":153}}},
+  "saved":{"fileID":"26-10-11_001","path":"/mine/mine_26-10-11_001.txt"} }
 ```
 
-- **Một version** ⇒ có thể đặt `patterns` trực tiếp; **nhiều version** ⇒ dùng `perVersion` + `jobs`.
-- Mỗi phần tử `patterns_list` (hoặc `patterns`) theo mô hình 4.3, **`do` double đầy đủ**.
-- `window` ở mức top = cửa sổ của job **đầu tiên** (tiện hiển thị); số liệu theo từng version nằm trong `perVersion`.
-
-### 5.4 `detail` — bổ sung
+### 7.2 `detail` — bổ sung `stats`
 
 ```jsonc
-{"id":2,"v":1,"ok":true,"...":"như mine","stats":{
+{"id":3,"v":1,"ok":true,"...":"như mine","stats":{
   "nodes":[{"item":"F","support":7,"do":1.2553,"head":0,"entries":7}],
-  "roots":6,"globalEntries":120,"topN":5, "phaseMs":{"g0":1,"g1":3,"g2":4,"g3":9}
-}}
+  "roots":6,"globalEntries":120,"topN":5,"phaseMs":{"g0":1,"g1":3,"g2":4,"g3":9}}}
 ```
 
-### 5.5 `stream` — progress rồi result
+### 7.3 `stream` (real-time) và `stream --step`
 
 ```jsonc
-{"id":3,"v":1,"event":"progress","version":"v2","phase":"MINING",
- "done":3,"total":6,"patterns":12,"elapsedMs":420}
-{"id":3,"v":1,"event":"window","version":"v2",
- "window":{"size":153,"effective":153,"evictions":20,"liveEntries":900,"deadEntries":10}}
-{"id":3,"v":1,"ok":true,"jobs":[{"version":"v2","total_ms":1800,"patterns":42}],
+// real-time: mỗi pattern đạt
+{"id":4,"v":1,"event":"pattern","version":"v3","index":12,
+ "pattern":{"items":["A","E"],"key":"A,E","do":1.2601,"support":3,"tids":[2,4,7]}}
+
+// --step + --detail 2 (chỉ DOP đạt)
+{"id":4,"v":1,"event":"step","version":"v3","phase":"MINING","kind":"DOP_CHECK",
+ "pattern":"A,E","passed":true,"do":1.2601,"minSup":9.18,"elapsedMs":0}
+
+// --detail 0: có cả passed:false
+{"id":4,"v":1,"event":"step","version":"v3","phase":"MINING","kind":"UBDO",
+ "pattern":"A,B,C","ubdo":2.10,"z":3.00,"passed":false}
+
+// kết thúc
+{"id":4,"v":1,"ok":true,"jobs":[{"version":"v3","total_ms":39,"patterns":3}],
  "patterns":[{"items":["A","E"],"key":"A,E","do":1.2601,"support":3,"tids":[2,4,7]}]}
 ```
 
-### 5.6 `window` (không cần dataset)
+### 7.4 `window` / `validate` (không cần dataset)
 
 ```jsonc
 {"id":6,"v":1,"cmd":"window","f":0.9,"minOcc":1e-6}
-```
-```jsonc
-{"id":6,"v":1,"ok":true,
- "window":{"size":153},
- "maxDOAsymptotic":10.0,
- "maxPartialAsymptotic":0.0654,
- "maxDOExact":null, "maxPartialExact":null}
+→ {"id":6,"v":1,"ok":true,"window":{"size":153},
+   "maxDOAsymptotic":10.0,"maxPartialAsymptotic":0.0654,
+   "maxDOExact":null,"maxPartialExact":null}
 ```
 
-> ⚠️ **Bắt buộc ghi hậu tố** (D38): không có `TL` ⇒ **chỉ** trả `…Asymptotic`. Khi request **có** `TL` (hoặc gọi sau khi nạp xong) ⇒ Manager **phải** trả thêm `maxDOExact`, `maxPartialExact` bằng công thức chính xác `Z(f,TL)/N_eff`. **Validator chặn tham số dùng giá trị chính xác**, không dùng xấp xỉ.
+> ⚠️ **Bắt buộc ghi hậu tố** (D38): không có `TL` ⇒ **chỉ** trả `…Asymptotic`. Có `TL` ⇒ **phải** trả thêm `maxDOExact`/`maxPartialExact` bằng `Z(f,TL)/N_eff`. **Validator chặn tham số dùng giá trị chính xác.**
 
-### 5.7 `validate`
-
-```jsonc
-{"id":5,"v":1,"cmd":"validate","partial":1.0,"f":0.9,"minOcc":1e-3}
-```
-```jsonc
-{"id":5,"v":1,"ok":true,
- "issues":[{"severity":"WARNING","code":"INFEASIBLE_PARTIAL",
-   "message":"minSup = ∂×N_eff = 88.0 > Z(f,TL) = 10.0 ⇒ the DOP set is provably EMPTY; reduce ∂ or increase f (exact feasible bound: ∂ ≤ 0.1136)"}],
- "maxPartialExact":0.1136,"maxPartialAsymptotic":0.1136}
-```
-
-### 5.8 `sweep`
+### 7.5 `sweep`
 
 ```jsonc
 {"id":7,"v":1,"cmd":"sweep","dataset":"mushroom.dat","f":0.9,
- "partials":[0.02,0.03,0.06],"minOccs":[1e-6],"versions":["v2"]}
-```
-```jsonc
-{"id":7,"v":1,"ok":true,"rows":[
- {"partial":0.02,"f":0.9,"minOcc":1e-6,"minSup":3.06,"patterns":12,"total_ms":35,"issue":null},
- {"partial":0.06,"f":0.9,"minOcc":1e-6,"minSup":9.18,"patterns":0,"total_ms":1200,"issue":"INFEASIBLE_PARTIAL"}
-]}
+ "partials":[0.02,0.03,0.06],"minOccs":[1e-6],"versions":["v3"]}
+→ {"id":7,"v":1,"ok":true,"rows":[
+   {"partial":0.06,"f":0.9,"minOcc":1e-6,"minSup":9.18,"patterns":0,"total_ms":83,
+    "issue":"INFEASIBLE_PARTIAL"}]}
 ```
 
-### 5.9 Quản trị: `info` / `version`
-
-```jsonc
-{"id":8,"v":1,"cmd":"info"}
-```
-```jsonc
-{"id":8,"v":1,"ok":true,
- "protocol":{"current":1,"supported":[1]},
- "manager":{"name":"dhopm-cli","maxWindow":10000000},
- "commands":["mine","detail","stream","golden","inspect","window","validate","sweep","info","version","session.create","feed","session.mine"],
- "versions":[
-   {"id":"v1","engine":"v1-standard","minOccDefault":0,"status":"ready"},
-   {"id":"v2","engine":"v2-minocc","minOccDefault":1e-6,"status":"ready"},
-   {"id":"v3","engine":"v3-optimized","status":"unavailable"},
-   {"id":"v4","engine":"v4-extreme","status":"unavailable"}],
- "formats":["fimi","text","zip"]}
-```
-
-> `info` trả **manifest tĩnh**; **không** dò trạng thái runtime nội bộ engine (P1). Version chưa hoàn thiện ⇒ `status:"unavailable"` (không crash).
-
-### 5.10 Phiên: `session.create` → `feed` → `session.mine`
+### 7.6 Phiên (`session.create` → `feed` → `session.mine`)
 
 ```jsonc
 {"id":9,"v":1,"cmd":"session.create","config":{"partial":0.15,"f":0.9,"minOcc":0}}
 → {"id":9,"v":1,"ok":true,"session":"s1"}
 {"id":10,"v":1,"cmd":"feed","session":"s1","transactions":[{"tid":1,"items":["A","E"]}]}
 → {"id":10,"v":1,"ok":true,"loaded":1,"lastTid":1,"window":{"size":null,"effective":1}}
-{"id":11,"v":1,"cmd":"session.mine","session":"s1","versions":["v2"],"minOcc":1e-6}
-→ {"id":11,"v":1,"ok":true,"jobs":[{"version":"v2","total_ms":3,"patterns":1}],
+{"id":11,"v":1,"cmd":"session.mine","session":"s1","versions":["v3"],"minOcc":1e-6}
+→ {"id":11,"v":1,"ok":true,"jobs":[{"version":"v3","total_ms":3,"patterns":1}],
    "patterns":[{"items":["A","E"],"key":"A,E","do":1.0,"support":1,"tids":[1]}]}
 ```
 
 ---
 
-## 6. Giao thức vận chuyển & phiên
+## 8. Lưu kết quả & tải file (D48)
 
-| Chế độ | Cách dùng | Khi nào | Trạng thái |
-|---|---|---|---|
-| **One-shot** | `Manager <command> --json`, đọc/ghi **1 dòng JSON** qua **stdio** | FE gọi 1 lần, không giữ trạng thái; test/automation | ✅ mặc định |
-| **Serve (JSONL)** | tiến trình `serve`; mỗi dòng = 1 request/response; `id` đồng bộ | Nhiều request liên tiếp, phiên stream | ✅ mặc định (stdio) |
-| ~~Daemon TCP~~ | mở cổng local | (chỉ khi `D34` = FE chạy **máy khác**) | ⛔ đã bác bỏ ở `DECISIONS.md` §6; **xét lại nếu D34 đổi** |
+### 8.1 Bật lưu
 
-**Nguyên tắc kênh:**
-- **`id`** là khoá đồng bộ giữa request → progress → response (bắt buộc trong `serve`).
-- **Progress/window event** là dòng JSON có `event`; FE tự tiêu thụ, có thể bỏ qua.
-- Một **session** xử lý **tuần tự** (khoá); nhiều session chạy song song.
-- Không auth (LAN nội bộ — rủi ro chấp nhận, ghi rõ nếu mở TCP).
+| Nguồn | Ý nghĩa |
+|---|---|
+| config `isLog` (mặc định `false`) | Nếu `true` ⇒ **luôn** ghi file kết quả sau mỗi lệnh mining |
+| cờ `--export [<path>]` | **Ghi đè** `isLog`; có `<path>` ⇒ ghi vào đó, không có ⇒ dùng thư mục mặc định |
+
+- `--export` **không có giá trị** → ghi thư mục mặc định (`export.dir`, mặc định `/mine`).
+- `<path>` là folder ⇒ BE tự tạo tên file theo quy ước; `<path>` không tồn tại ⇒ tạo; không đủ quyền (vd `C:\Program Files`) ⇒ dùng mặc định + cảnh báo.
+
+### 8.2 Quy ước tên file
+
+```
+/mine/mine_<yy-MM-dd>_<NNN>.txt      ví dụ: /mine/mine_26-10-11_001.txt
+```
+
+- `<NNN>`: 3 chữ số, **tự tăng trong ngày**, **reset về `001` mỗi ngày** (D48).
+- `fileID` (cấp trong response) = `<yy-MM-dd>_<NNN>` (vd `26-10-11_001`).
+
+### 8.3 `ResultStore` (phía BE)
+
+- API tối giản: `write(fileID, str)`.
+- Ghi qua **hàng đợi + 1 thread riêng** để **không chặn** worker mining; nhiều mining đồng thời vẫn nhớ nội dung cần ghi.
+
+### 8.4 `fetch` (FE tải file từ BE)
+
+```jsonc
+{"id":12,"v":1,"cmd":"fetch","file":"26-10-11_001"}
+→ {"id":12,"v":1,"ok":true,"fileID":"26-10-11_001",
+   "path":"/mine/mine_26-10-11_001.txt","content":"..."}
+```
+
+- File lớn ⇒ chia thành chuỗi event `{"event":"chunk","data":"..."}` kết thúc bằng `{"event":"end","fileID":"..."}`.
+
+### 8.5 FE sao lưu cục bộ (bắt buộc)
+
+- Khi `isLog = true` (hoặc có `--export`), FE **phải lưu một bản sao cục bộ** nội dung kết quả sau khi mining xong — **không phụ thuộc BE** (D48).
+- FE tự quyết thư mục lưu cục bộ; hợp đồng chỉ ràng buộc **có lưu**.
 
 ---
 
-## 7. Mã lỗi & cảnh báo (ổn định)
+## 9. Config interface (D49)
 
-### 7.1 Lỗi request (làm request thất bại)
+### 9.1 Ba cấp (độ ưu tiên tăng dần)
+
+```
+default (built-in)  <  file JSON (thư mục cấu hình người dùng)  <  CLI args
+```
+
+- File JSON: `%APPDATA%\dhopm\config.json` (Windows) / `~/.config/dhopm/config.json` (macOS/Linux).
+- CLI args luôn thắng file; file luôn thắng default.
+
+### 9.2 Lệnh
+
+```
+config get <key>
+config set <key> <value>
+config list
+```
+
+### 9.3 Khoá khởi điểm
+
+| Key | Kiểu | Mặc định | Ý nghĩa |
+|---|---|---|---|
+| `isLog` | bool | `false` | có ghi file kết quả |
+| `export.dir` | string | `/mine` | thư mục ghi mặc định |
+| `workers` | int | số CPU | số worker |
+| `detail` | int | `1` | mức `--detail` mặc định |
+
+---
+
+## 10. Mã lỗi & cảnh báo (ổn định)
+
+### 10.1 Lỗi request
 
 | Code | Nghĩa |
 |---|---|
 | `UNKNOWN_COMMAND` | `cmd` không thuộc bộ lệnh |
-| `UNKNOWN_VERSION` | `versions[]` chứa version không tồn tại / chưa hỗ trợ |
-| `MISSING_PARAMETER` | thiếu `partial`/`f`/`minOcc` (hoặc `dataset`/`session` khi cần) |
-| `INVALID_PARAMETER` | giá trị ngoài miền (`∂∉[0,1]`, `f∉(0,1]`, `minOcc∉[0,1)`, `ε≤0`, `workers<1`) |
-| `MIN_OCC_TOO_LARGE` | `minOcc ≥ 1/(1−f)` ⇒ `W=0` (lỗi cấu hình, D30) |
-| `WINDOW_TOO_LARGE` | `W > maxWindow` (10⁷) — không cấp phát nổi |
-| `MISMATCHED_WINDOW_CONFIG` | so nhiều version với `(∂,f,minOcc)` khác nhau (R7) |
+| `UNKNOWN_VERSION` | version không tồn tại / chưa hỗ trợ |
+| `MISSING_PARAMETER` | thiếu `partial`/`f`/`minOcc` (hoặc `dataset`/`session`) |
+| `INVALID_PARAMETER` | giá trị ngoài miền |
+| `MIN_OCC_TOO_LARGE` | `minOcc ≥ 1/(1−f)` ⇒ `W=0` (D30) |
+| `WINDOW_TOO_LARGE` | `W > maxWindow` (10⁷) |
+| `MISMATCHED_WINDOW_CONFIG` | so nhiều version với `(∂,f,minOcc)` khác (R7) |
 | `DATASET_NOT_FOUND` | file dataset không tồn tại |
-| `UNSUPPORTED_FORMAT` | format/extension ngoài `fimi`/`text`/`.zip` (D43) |
+| `UNSUPPORTED_FORMAT` | format ngoài `fimi`/`text`/`.zip` (D43) |
 | `SESSION_NOT_FOUND` | `session` không tồn tại |
-| `NOT_IMPLEMENTED` | version/feature chưa có (vd V3/V4 khi chưa xong) |
-| `INTERNAL_ERROR` | lỗi không lường trước (kèm `message`) |
+| `FILE_NOT_FOUND` | `fileID` không tồn tại trong `/mine` |
+| `EXPORT_FAILED` | không ghi được file (quyền/đường dẫn) |
+| `CONFIG_KEY_UNKNOWN` / `CONFIG_INVALID_VALUE` | config get/set sai key/giá trị |
+| `NOT_IMPLEMENTED` | version/feature chưa có |
+| `INTERNAL_ERROR` | lỗi không lường trước |
 
-### 7.2 Cảnh báo (request vẫn `ok`, kèm `issues[]`)
+### 10.2 Lỗi/trạng thái phía FE (client-side)
+
+| Code | Nghĩa |
+|---|---|
+| `BE_NOT_FOUND` | dò localhost + LAN không thấy BE hợp lệ |
+| `PROTOCOL_MISMATCH` | `hello.protocol` khác contract |
+| `CONNECT_REFUSED` | cổng từ chối/không phản hồi |
+
+### 10.3 Cảnh báo (request vẫn `ok`, kèm `issues[]`)
 
 | Code | Nghĩa |
 |---|---|
 | `PARTIAL_ZERO` | `∂=0` ⇒ mọi pattern là DOP ⇒ output bùng nổ (D31) |
-| `INFEASIBLE_PARTIAL` | `∂×N_eff > Z(f,TL)` ⇒ kết quả **chắc chắn rỗng**; trả ∅ O(1) + cảnh báo có số liệu (D19/D38) |
+| `INFEASIBLE_PARTIAL` | `∂×N_eff > Z(f,TL)` ⇒ kết quả **chắc chắn rỗng** (D19/D38) |
 
 ---
 
-## 8. Tích hợp phía FE (BackendClient)
-
-FE chỉ cần **một** lớp client thay cho `TsonV1Bridge`:
+## 11. Tích hợp phía FE (BackendClient)
 
 ```
 FE (javanc)                          BE (JVNC)
@@ -368,69 +464,80 @@ FE (javanc)                          BE (JVNC)
 interface BridgeEngine  ◄── giữ nguyên DIP
    ▲
 BackendClient implements BridgeEngine
-   │  serialize request theo hợp đồng này
-   │  (chạy Manager one-shot hoặc gửi JSONL tới serve)
-   └──────────────────────────────► dhopm-cli (Manager) ──► engines
+   │  detect() → hello → lưu địa chỉ :7079
+   │  gửi request JSON theo hợp đồng này
+   │  nhận progress/step → result
+   └──────────────────────────────► dhopm-cli (Manager, `serve`) ──► engines
 ```
 
 | Việc | FE phải làm |
 |---|---|
-| Thay `TsonV1Bridge` | bằng `BackendClient` (gửi JSON theo hợp đồng) |
-| Giữ `BridgeEngine` | interface DIP giữ nguyên — không đổi kiến trúc FE |
-| Giữ `TamSimulationBridge` | engine demo animation nội bộ — không đụng |
-| Bỏ Maven-dependency | **không** import `dhopm.*`, không cần `mvn install` jar backend |
-| Hiển thị cửa sổ | đọc `window` (`size=null` ⇒ chế độ paper, vẽ nhãn "W=∞") |
-| Hiển thị cảnh báo | đọc `issues[]` + mã lỗi, hiển thị `message` có số liệu |
+| Thay `TsonV1Bridge` | bằng `BackendClient` (TCP 7079) |
+| Giữ `BridgeEngine` | interface DIP giữ nguyên |
+| Giữ `TamSimulationBridge` | engine demo nội bộ — không đụng |
+| Bỏ Maven-dependency | **không** import `dhopm.*` |
+| Detect BE | nút Detect: localhost → LAN → `hello` → lưu địa chỉ |
+| Hiển thị cửa sổ | đọc `window` (`size=null` ⇒ "W=∞") |
+| Hiển thị cảnh báo | đọc `issues[]` + mã lỗi |
+| **Sao lưu cục bộ** | khi `isLog`, lưu bản sao kết quả (D48) |
 
 ---
 
-## 9. Ví dụ end-to-end (chạy G2 threshold mushroom)
+## 12. Ví dụ end-to-end
 
 ```jsonc
-// 1) FE hỏi cấu hình trước (không cần dataset)
+// 1) FE detect
+{"id":0,"v":1,"cmd":"hello"}
+// ← {"id":0,"v":1,"ok":true,"protocol":1,"versions":[{"id":"v3","status":"ready"}]}
+
+// 2) Tra cửa sổ (không cần dataset)
 {"id":1,"v":1,"cmd":"window","f":0.9,"minOcc":1e-6}
 // ← {"id":1,"v":1,"ok":true,"window":{"size":153},"maxPartialAsymptotic":0.0654}
 
-// 2) FE chạy đối chiếu V1 vs V2 cùng (∂,f,minOcc)
-{"id":2,"v":1,"cmd":"mine","dataset":"mushroom.dat","format":"fimi",
- "partial":0.06,"f":0.9,"minOcc":1e-6,"versions":["v1","v2"]}
+// 3) Chạy đối chiếu V2 vs V3 cùng (∂,f,minOcc), có lưu file
+{"id":2,"v":1,"cmd":"mine","dataset":"retail.dat","format":"fimi",
+ "partial":0.01,"f":0.9,"minOcc":1e-6,"versions":["v2","v3"],"export":true}
 // ← {"id":2,"v":1,"ok":true,
-//     "jobs":[{"version":"v1","total_ms":301000,"patterns":0},
-//             {"version":"v2","total_ms":4,"patterns":0}],
-//     "issues":[{"severity":"WARNING","code":"INFEASIBLE_PARTIAL",
-//                "message":"minSup = 9.18 > Z = 10 ... "}]}
-//   ⇒ FE hiển thị: V2 trả ∅ tức thì; V1 chạy 301 s mới ra ∅ ⇒ thấy giá trị cửa sổ.
+//     "jobs":[{"version":"v2","total_ms":115,"patterns":0},
+//             {"version":"v3","total_ms":39,"patterns":0}],
+//     "saved":{"fileID":"26-10-11_001","path":"/mine/mine_26-10-11_001.txt"}}
+//   ⇒ FE fetch "26-10-11_001" và lưu bản sao cục bộ.
 ```
 
 ---
 
-## 10. Tiêu chí chấp nhận (test hợp đồng)
+## 13. Tiêu chí chấp nhận (test hợp đồng)
 
-- [ ] Schema mỗi lệnh có **request/response JSON hợp lệ**; `id` khớp.
-- [ ] `mine --json` cho **cùng kết quả** với CLI văn bản cũ (so `inspect`), cho V1 & V2.
+- [ ] `hello` handshake đúng; FE dò được localhost → LAN; sai contract ⇒ `BE_NOT_FOUND`/`PROTOCOL_MISMATCH`.
+- [ ] Schema mỗi lệnh hợp lệ; `id` khớp request → event → response.
+- [ ] `mine --json` cho **cùng kết quả** CLI văn bản cũ, cho V1/V2/V3.
+- [ ] Mọi lệnh mining **trả danh sách DOPs** (D47).
 - [ ] `window.size` khớp `WindowMathTest` + bảng `plans/00` §2.3.1.
-- [ ] Thiếu `(∂,f,minOcc)` ⇒ `MISSING_PARAMETER`; `minOcc ≥ 1/(1−f)` ⇒ `MIN_OCC_TOO_LARGE`; multi-version lệch tham số ⇒ `MISMATCHED_WINDOW_CONFIG`.
-- [ ] `window` **không có `TL`** ⇒ chỉ `…Asymptotic` + `…Exact=null`; có `TL` ⇒ trả `…Exact` (D38).
-- [ ] `versions:["v3"]` (chưa xong) ⇒ `UNKNOWN_VERSION`/`NOT_IMPLEMENTED`, **không crash**.
-- [ ] Stream lớn có `progress` event, không đóng băng.
-- [ ] FE (`javanc`) chạy **chỉ** với `BackendClient`; `grep -R "dhopm."` trong FE = 0 kết quả.
+- [ ] Thiếu `(∂,f,minOcc)` ⇒ `MISSING_PARAMETER`; multi-version lệch ⇒ `MISMATCHED_WINDOW_CONFIG`.
+- [ ] `window` không `TL` ⇒ chỉ `…Asymptotic` (D38).
+- [ ] `--export`/`isLog` ghi `mine_<yy-MM-dd>_<NNN>.txt`; NNN **reset theo ngày**; `fetch` lấy đúng nội dung; FE **mirror**.
+- [ ] `stream --step --detail 0/1/2` phát đúng mức log.
+- [ ] `config get/set/list` đúng 3 cấp (`default < file JSON < args`).
+- [ ] FE (`javanc`) chạy **chỉ** với `BackendClient`; `grep -R "dhopm."` trong FE = 0.
 - [ ] Cùng request + khác `workers` ⇒ kết quả **bit-for-bit** (R11).
 
 ---
 
-## 11. Phụ lục — Ánh xạ lệnh ↔ API `dhopm-common`
+## 14. Phụ lục — Ánh xạ lệnh ↔ API `dhopm-common`
 
 | Lệnh | Dùng API |
 |---|---|
 | `mine`/`detail`/`session.mine` | `Engine.loadBatch` + `Engine.mineNow` → `MineResult`, `Pattern` |
-| `stream` progress | `ProgressAwareEngine` + `MiningProgressListener` (`MiningProgress`) |
-| `stream` window / `window` | `WindowAwareEngine` + `WindowListener` (`WindowInfo`), `WindowMath` |
+| `stream` real-time | `ProgressAwareEngine` + `MiningProgressListener` |
+| `stream --step` / `--detail` | `PhaseAwareEngine` (`Phase`) + listener (DOP/UBDO/DO) |
+| `window` / window event | `WindowAwareEngine` + `WindowListener` (`WindowInfo`), `WindowMath` |
 | `validate` | `ParameterValidator.validate(config[, tl])` (`Issue`, `Severity`) |
 | `inspect` | `TransactionSource` / `FimiTransactionReader` / `TextTransactionReader` / `ZipDataset` |
 | `golden` | `GoldenRunner` + `GoldenCases` (TestKit) |
-| `mine` timing | `TimedEngine` / `TimingRecorder`, `PhaseAwareEngine` (`Phase`) |
+| `mine` timing | `TimedEngine` / `TimingRecorder`, `PhaseAwareEngine` |
 | `mine` workers | `MiningConfig.workers` + `WorkerPool` |
+| `fetch` / lưu file | `ResultStore` (module `dhopm-cli`) |
 
 ---
 
-*Kết thúc hợp đồng FE. Thay đổi hợp đồng phải: (1) tăng `contract version`, (2) chỉ **thêm** field/cmd, (3) ghi quyết định vào `DECISIONS.md`. Ranh giới bắt buộc: FE **không** import `dhopm.*`.*
+*Kết thúc hợp đồng FE (v0.2). Thay đổi hợp đồng phải: (1) tăng `contract version`, (2) chỉ **thêm** field/cmd, (3) ghi quyết định vào `DECISIONS.md`. Ranh giới bắt buộc: FE **không** import `dhopm.*`.*

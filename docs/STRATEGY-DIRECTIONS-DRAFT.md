@@ -287,7 +287,7 @@ implementation/
 | 1 | **SPI / plugin discovery / `PluginRegistry`** | Có **4** engine đã biết trước tên. Hardcode một list factory là đủ và *rõ hơn*. YAGNI. |
 | 2 | **`ResourceManager` → native Windows/macOS** (D8/MA4) | Java không có API quota CPU portable. Nhu cầu thật đã giải quyết bằng `workers` + `--limit`. |
 | 3 | **Recovery / `JobLedger` / journal** | Sau khi có cửa sổ minOcc, một lần `mine` là vài giây ⇒ "khởi động lại biết đang làm gì" thành vấn đề giả. |
-| 4 | **Daemon TCP / remote LAN** | Mặc định: **JSONL qua stdio** — đủ cho cả demo lẫn test. |
+| 4 | **Daemon TCP / remote LAN** | ✅ **Mở lại 2026-10-11** theo **`D46`** — chốt **TCP `7079`** + giữ stdio (FE/BE độc lập, có thể khác máy). |
 | 5 | **`JobManager` / `ResultAggregator` / config 3 cấp** | Có giá trị khi có nhiều engine, nhiều người gọi, chạy lâu. Hiện tại: 1 người gọi, 1 máy, chạy ngắn. |
 | 6 | **FE10 "bật/tắt C1–C12 lúc chạy"** | Đây là *xây IDE nghiên cứu*. **Giữ ở dạng "bảng tham số nâng cao"**: `f`, `∂`, `minOcc`, `workers`. Toggling *ngữ nghĩa canonical* → bỏ hoặc đẩy sang "chế độ giảng dạy". |
 | 7 | **10 dataset nặng trong `mvn test`** | Tách sang profile/tag (`-Pheavy`). |
@@ -335,8 +335,8 @@ Mỗi mốc đều **độc lập tạo ra giá trị** — nếu hết thời g
 - **R13** — data-oriented thuần, Level 3
 - **Xong khi:** ≡ V3; có báo cáo "giữ / bỏ từng ý tưởng".
 
-### G5 — Manager CLI/API (song song G3/G4)
-- Theo `plans/05-BACKEND-CLIAPI-PLAN.md` MA1–MA3.
+### G5 — Manager CLI/API (**ưu tiên trước G4** — `D45`)
+- Theo `plans/05-BACKEND-CLIAPI-PLAN.md` MA1–MA3 (đã chốt `D45`–`D49`); kế hoạch chi tiết `phases/P5-G5.md`; contract `plans/08-FE-CONTRACT.md`.
 
 ### G6 — Trình diễn (2–3 tuần) · *"Thấy được, hiểu được"*
 - **R7** + **R9** (app 2 tab)

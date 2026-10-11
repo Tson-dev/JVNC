@@ -1,12 +1,14 @@
 # Kế hoạch Giao tiếp Backend ↔ Frontend (Manager CLI / API) — DHOPM
 
-> **Document ID:** DHOPM-PLAN-005 · **Version:** 1.1 (Draft để phân tích)
+> **Document ID:** DHOPM-PLAN-005 · **Version:** 1.2 (Draft để phân tích)
 > **Bí danh:** Backend CLI/API (Manager)
 > **Vai trò:** Sơn = **backend** (thuật toán **4 version** + CLI/API) · Tâm = **frontend** (JavaFX Visualizer, repo `2312441-sudo/javanc`)
 > **Tài liệu gốc:** `docs/plans/00-OVERALL-PLAN.md` (mục 4.2, 4.3; quyết định D6, D7, D8)
 > **Trạng thái:** PLÂN — chưa code. Tài liệu này để **phân tích hướng đi** trước khi sửa project.
 >
 > **Cập nhật 1.1:** đồng bộ với plan tổng thể v2.0 — **4 version** (thêm `window`/`validate`/`sweep` vào bộ lệnh chuẩn; schema có `minOcc` + `windowInfo`; `minSup` = `∂ × N_eff` thay vì `∂ × tổng`).
+>
+> **Cập nhật 1.2 (2026-10-11):** các lựa chọn cũ **OP-1..OP-6 (mục 6.2)** nay **đã chốt** ở `DECISIONS.md` **D45–D49**, và **đặc tả giao thức chi tiết đã chuyển sang `plans/08-FE-CONTRACT.md`** (bản chuẩn của G5). Điểm khác chính so với bản 1.1: **transport = TCP `localhost:7079` + giữ stdio** (D46); **CLI Hybrid** + `stream --step` + `--detail 0/1/2` (D47); **lưu file `isLog`/`--export` + `fetch` + FE mirror** (D48); **config 3 cấp** (D49); **ưu tiên G5 trước G4** (D45).
 
 ---
 
@@ -152,22 +154,25 @@ implementation/ (backend, repo JVNC)
 | Chế độ | Cách dùng | Khi nào |
 |---|---|---|
 | **One-shot** | `Main <command>` như hiện tại; thêm `--json` để xuất dữ liệu máy-đọc | Frontend gọi 1 lần, không cần giữ trạng thái |
-| **Daemon (session)** | Backend chạy 1 tiến trình `serve`; frontend kết nối, `session.create → feed → mine → …` | Mô phỏng stream thời gian thực, nhiều request liên tiếp |
+| **Daemon stdio (session)** | Backend chạy 1 tiến trình `serve`; frontend kết nối qua stdin/stdout, `session.create → feed → mine → …` | test/CI/automation |
+| **Daemon TCP (session)** ✅ (D46) | BE `serve` **luôn mở cổng `7079`** chờ `connect`; FE dò localhost → LAN rồi `hello`/`session.*` | FE runtime (C1), app (C2) — kể cả **khác máy** |
 
-### 6.2 Các lựa chọn cần CHỐT (để bạn phân tích/sửa)
+### 6.2 Các lựa chọn (✅ **đã chốt** ở `DECISIONS.md` D45–D49 — xem `plans/08-FE-CONTRACT.md`)
 
-| OP# | Câu hỏi | Phương án (đang nghiêng về) |
+| OP# | Câu hỏi | ✅ Phương án đã chốt |
 |---|---|---|
-| OP-1 | Giao thức vận chuyển | **JSON Lines (JSONL)** qua stdin/stdout chuẩn hóa — đơn giản, dễ test; nâng cấp TCP/HTTP khi cần |
-| OP-2 | Chế độ chạy | Làm **cả 2**: `--json` (one-shot, rẻ nhất) + `serve` (daemon, giữ session) |
-| OP-3 | Engine chạy in-process hay subprocess | **In-process qua API dhopm-common** (đơn giản, D6); chuyển subprocess chỉ khi cần cô lập crash / JVM khác / đo resource theo tiến trình — bàn sau, không chặn MA1 |
-| OP-4 | Schema result | `patterns[] {items[], do (double), support, tids[]}` + `perVersion` khi nhiều version; trùng khớp Pattern/DO của dhopm-common (C4–C6) |
-| OP-5 | Frontend cần gì tối thiểu | Chỉ 1 lớp `BackendClient` thay `TsonV1Bridge`; giữ `BridgeEngine` interface (DIP không đổi) |
-| OP-6 | Tên module | `dhopm-cli` (Manager) — hoặc tách `dhopm-manager` nếu muốn rõ vai trò điều phối |
+| OP-1 | Giao thức vận chuyển | **TCP `localhost:7079`** (chính, BE `serve` luôn mở cổng) **+ giữ JSON Lines (JSONL) qua stdin/stdout** cho test/CI — **D46** |
+| OP-2 | Chế độ chạy | **Cả 2**: `--json` (one-shot) + `serve` (TCP 7079 + stdio JSONL) — D46 |
+| OP-3 | Engine chạy in-process hay subprocess | **In-process qua API dhopm-common** (D6); subprocess để sau |
+| OP-4 | Schema result | `patterns[] {items[], key, do (double), support, tids[]}` + `perVersion`; khớp Pattern/DO của dhopm-common (C4–C6) |
+| OP-5 | Frontend cần gì tối thiểu | 1 lớp `BackendClient` thay `TsonV1Bridge`; giữ `BridgeEngine` (DIP); FE **phải mirror** kết quả khi `isLog` (D48) |
+| OP-6 | Tên module | `dhopm-cli` (Manager) |
 
 ---
 
 ## 7. Đặc tả giao thức (draft — để phân tích, sẽ viết thành tài liệu Contract cho Tâm)
+
+> ⚠️ **Đã chuyển bản chuẩn (2026-10-11):** đặc tả giao thức **đầy đủ & chốt** nằm ở **`plans/08-FE-CONTRACT.md`** (v0.2). Mục 7 dưới đây là **bản phân tích ban đầu**, giữ để tham chiếu lịch sử; khi mâu thuẫn, **`08` thắng**.
 
 Giao thức đề xuất: **mỗi dòng = 1 JSON request/response** (JSONL). ID đồng bộ giữa
 request/response/progress.
@@ -271,11 +276,11 @@ Nguyên tắc schema:
 
 | Mốc | Nội dung | Đầu ra | Chế độ chờ |
 |---|---|---|---|
-| **MA0** | Hoàn thiện tài liệu này: chốt OP-1..OP-6, thống nhất với Tâm | Plan chốt + đặc tả protocol draft | Hiện tại |
+| **MA0** | ✅ **Xong (2026-10-11):** chốt OP-1..OP-6 → `D45–D49`; đặc tả chuyển sang `plans/08-FE-CONTRACT.md`; kế hoạch G5 ở `phases/P5-G5.md` | Plan chốt + contract `08` v0.2 | ✅ |
 | **MA1** | Manager tối thiểu: `--json` + `serve`(JSONL), map lệnh chuẩn, registry cho **V1**; `window`/`validate` trả số liệu công thức | `dhopm-cli` chạy được, cùng kết quả CLI cũ (`--json` `mine` == `Main mine`) | MA0 |
 | **MA2** | JobManager: yêu cầu nhiều version → tách job con → gộp kết quả; session đơn giản | Fan-out V1 (+V2/V3/V4 khi có) + progress event + `windowInfo` | MA1 |
-| **MA3** | Tích hợp frontend javanc: thay `TsonV1Bridge` bằng `BackendClient` (theo đặc tả), giữ `BridgeEngine`; **Tâm làm client phía mình, Sơn cấp đặc tả + test chuẩn** | Frontend chạy được với backend qua Manager | MA2 |
-| **MA4** | Plan tài nguyên **riêng** (ResourceManager→native→Win/Mac) | Tài liệu plan tài nguyên | Song song từ MA2 |
+| **MA3** | Tích hợp frontend javanc: thay `TsonV1Bridge` bằng `BackendClient` (TCP 7079), giữ `BridgeEngine`; **Tâm làm client phía mình, Sơn cấp đặc tả + test chuẩn** | Frontend chạy được với backend qua Manager; FE mirror khi `isLog` | MA2 |
+| **MA4** | ⛔ **Đã bác bỏ** cùng `ResourceManager` → native Win/Mac (xem `DECISIONS.md` §6). Thay bằng: cấu hình thuần `workers`/`limit`/`parts` trong Manager | — | — |
 
 **Tiêu chí chấp nhận:**
 - [ ] Cùng một yêu cầu qua `--json` và qua CLI văn bản cũ → **cùng kết quả** (so `inspect`/`mine`).

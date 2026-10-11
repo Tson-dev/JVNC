@@ -617,12 +617,12 @@ implementation/
 | **G1. V1 Standard** ✅ | Level 1 threading, GoF, qua TC1–TC8, benchmark sơ bộ, tài liệu V1, CLI 5 lệnh, D6 | `dhopm-v1-standard` | G0 |
 | **G2. V2 MinOcc/Window** | `WindowMath` + validator trong `dhopm-common`; handle 2 tầng; evict O(1); `minSup` 2 pha; bound `min(DUBO,Z(X))`; short-circuit trần; **TC9–TC18**; `window`/`validate`/`sweep` CLI; **INV-I hồi quy**; đo ablation V1 vs V2 | `dhopm-v2-minocc` + báo cáo đo minOcc | G1 |
 | **G3. V3 Optimized** | Cùng ngữ nghĩa V2, tối ưu: bỏ xích handle (int index), SoA/primitive, decay lookup, ForkJoin Level 2; benchmark đầy đủ | `dhopm-v3-optimized` + benchmark report | G2 |
-| **G4. V4 Extreme** | Data-oriented thuần, pipeline 3 pha, memory-mapped I/O; chỉ giữ gì đo được lợi | `dhopm-v4-extreme` + báo cáo | G3 |
-| **G5. Manager CLI/API** | `dhopm-cli`: `--json` one-shot + `serve` JSONL, registry, `JobManager`, `SessionManager`, `ResultAggregator`; đặc tả giao thức = contract cho `javanc` | `dhopm-cli` + protocol | song song G3/G4 |
+| **G4. V4 Extreme** | Data-oriented thuần, pipeline 3 pha, memory-mapped I/O; chỉ giữ gì đo được lợi | `dhopm-v4-extreme` + báo cáo | **hoãn — sau G5 (`D45`)** |
+| **G5. Manager CLI/API** ✅ *(phạm vi chốt 2026-10-11)* | `dhopm-cli`: `--json` one-shot + `serve` (**TCP `7079`** + stdio JSONL), registry, `JobManager`, `SessionManager`, `ResultAggregator`, `ResultStore`; CLI **Hybrid** (`stream --step`/`--detail 0/1/2`), `isLog`/`--export`/`fetch`, config 3 cấp; contract `plans/08-FE-CONTRACT.md` cho `javanc` | `dhopm-cli` + protocol | **ưu tiên trước G4** (`D45`) |
 | **G6. Debug/Compare App** | `dhopm-app` (module UI riêng, loading/mining screen): chọn ≥1 engine, so sánh, debug nội bộ, **hiển thị cửa sổ minOcc và vòng đời pattern** | `dhopm-app` | G3 |
 | **G7. Dữ liệu mở rộng (tuỳ chọn)** | Reader `Utility-FIMI` (chưa có dữ liệu, xem D42) | Utility-FIMI đọc được | có thể làm sớm hơn G2 |
 
-> **Chốt:** hiện tại ưu tiên **G2**. G3 → G4 → G6 theo thứ tự. G5 (Manager) có thể làm song song với G3/G4 vì không chặn thuật toán. **Chi tiết G2 ở `docs/plans/02-MINOCC-WINDOW-VERSION-PLAN.md` và `docs/phases/P2-G2.md`.**
+> **Chốt (cập nhật 2026-10-11, `D45`):** G1/G2/G3 đã xong; **ưu tiên G5 (Manager CLI/API) trước G4** — G4 **hoãn, không bỏ**; G6 sau G5. Chi tiết G5 ở `docs/phases/P5-G5.md`; contract FE ↔ BE ở `docs/plans/08-FE-CONTRACT.md`; lý do chuyển hướng ở `docs/plans/07-G5-PIVOT-ANALYSIS.md`.
 
 ---
 

@@ -6,10 +6,10 @@ Dự án triển khai và nghiên cứu thuật toán khai thác **DOP (Damped O
 |---|---|---|---|---|
 | **V1** | Standard (GoF, **oracle**) | `dhopm-v1-standard` | Level 1 | ✅ **Xong (G1)** — đóng băng |
 | **V2** | **MinOcc / Window** | `dhopm-v2-minocc` | Level 1 | ✅ **Xong (G2)** — 18 test |
-| **V3** | Optimized | `dhopm-v3-optimized` | Level 2 (ForkJoinPool) | ✅ **Xong (G3)** — 16 test; `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
+| **V3** | Optimized | `dhopm-v3-optimized` | Level 2 (ForkJoinPool) | ✅ **Xong (G3)** — 28 test; `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
 | **V4** | Extreme | `dhopm-v4-extreme` | Level 3 (data-oriented) | 🕓 Chưa code |
 
-Còn lại: `dhopm-common` (hạ tầng chung + `WindowMath`), `dhopm-bench` (benchmark), `dhopm-app` (debug/compare app + UI, G4).
+Còn lại: `dhopm-common` (hạ tầng chung + `WindowMath`), `dhopm-bench` (benchmark), **`dhopm-cli`** (Manager CLI/API — điểm vào duy nhất cho FE, G5), `dhopm-app` (debug/compare app + UI, G4).
 
 ## Ý tưởng trung tâm — cửa sổ minOcc
 
@@ -44,9 +44,12 @@ JVNC/
 │   ├── dhopm-common/     io · config · contract · util · TestKit (55 test)
 │   ├── dhopm-v1-standard/   V1 oracle (32 test) + CLI 5 lệnh
 │   ├── dhopm-v2-minocc/     V2 cửa sổ minOcc (18 test) + CLI 10 lệnh
-│   ├── dhopm-v3-optimized/  V3 tối ưu — 16 test, build xanh
+│   ├── dhopm-v3-optimized/  V3 tối ưu (28 test), build xanh
+│   ├── dhopm-cli/           Manager CLI/API — JSONL stdio + TCP :7079 (12 test, G5)
 │   └── dhopm-bench/         benchmark harness (V1/V2/V3)
 ├── run.bat           chạy test một lệnh (Windows)
+├── run-be.bat        chạy Backend/Manager một lệnh (Windows)
+├── CONTRACT.md       hướng dẫn FE kết nối BE (tóm tắt)
 └── README.md
 ```
 
@@ -65,7 +68,7 @@ run.bat
 
 Không cần chạy từng lệnh — script tự set `JAVA_HOME` rồi chạy toàn bộ test (`mvn test`).
 
-> ✅ **Trạng thái:** toàn reactor **121 test xanh** (55 common + 32 V1 + 18 V2 + 16 V3).
+> ✅ **Trạng thái:** toàn reactor **145 test xanh** (55 common + 32 V1 + 18 V2 + 28 V3 + 12 CLI).
 
 Tùy chọn truyền goal cho Maven (mặc định là `test`):
 
@@ -86,6 +89,48 @@ mvn -f implementation\pom.xml test
 ```bat
 mvn -f implementation\pom.xml test -Dtest=DatasetValidationTest
 ```
+
+## Chạy BE (Manager CLI/API)
+
+BE là **Manager** (`dhopm-cli`) — điểm vào duy nhất cho FE/tooling. FE **không** import `dhopm.*`; nói chuyện qua hợp đồng JSON (xem [`CONTRACT.md`](CONTRACT.md), chi tiết [`docs/plans/08-FE-CONTRACT.md`](docs/plans/08-FE-CONTRACT.md)).
+
+**1) Build trước (một lần):**
+
+```bat
+run.bat -DskipTests install
+```
+
+**2) Chạy server (mở cổng TCP 7079 cho FE + stdio):**
+
+```bat
+run-be.bat
+```
+
+Tương đương `run-be.bat serve --tcp`. Mặc định cổng **7079**; đổi bằng `run-be.bat serve --tcp --port 7080`.
+
+**FE kết nối:** TCP `localhost:7079` → gửi `{"id":0,"v":1,"cmd":"hello"}` → kiểm tra `protocol:1` → bắt đầu gửi request. BE chủ động mở cổng, **không** chờ FE.
+
+**Chạy 1 lệnh rồi thoát** (`--json` in phong bì hợp đồng):
+
+```bat
+run-be.bat info --json
+run-be.bat window 0.9 --minOcc 0.000001 --json
+run-be.bat mine dataset\default.dat 0.15 0.9 0 --minOcc 0 --versions v3 --json
+run-be.bat validate 0.15 0.9 --minOcc 0.000001 --json
+run-be.bat inspect dataset\default.dat --f 0.9 --minOcc 0.000001 --json
+run-be.bat config list --json
+```
+
+**Stdio JSONL** (test/CI, mỗi dòng 1 request, mỗi dòng 1 phản hồi):
+
+```bat
+run-be.bat serve
+```
+
+> Không dùng `run-be.bat`? Gọi Java trực tiếp với classpath 5 module (sau bước build ở trên):
+> ```bat
+> java -cp "implementation\dhopm-cli\target\classes;implementation\dhopm-common\target\classes;implementation\dhopm-v1-standard\target\classes;implementation\dhopm-v2-minocc\target\classes;implementation\dhopm-v3-optimized\target\classes" dhopm.cli.ManagerMain serve --tcp
+> ```
 
 ## TestKit (TC1–TC8 · mở rộng TC9–TC18 ở V2)
 
@@ -148,9 +193,9 @@ Thêm `default.dat`: 8 giao dịch demo (A–G), dùng cho TC1–TC6 / kiểm th
 | **G0** | Khởi động — Maven structure, `dhopm-common`, TestKit TC1–TC8, validate dataset | ✅ |
 | **G1** | **V1 Standard** (oracle, `minOcc=0`) | ✅ **`docs/phases/P1-G1.md`** |
 | **G2** | **V2 MinOcc/Window** | ✅ **`docs/phases/P2-G2.md`** + `docs/reports/G2-V2-MINOCC-BAOCAO.md` |
-| G3 | V3 Optimized | ✅ **Xong** — `docs/reports/G3-V3-OPTIMIZED-BAOCAO.md`; 16 test, `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
+| G3 | V3 Optimized | ✅ **Xong** — `docs/reports/G3-V3-OPTIMIZED-BAOCAO.md`; 28 test, `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit; nhanh hơn V2 **2.3–28×** |
 | G4 | Debug/Compare App (UI module) | 🕓 Chưa lập plan |
-| G5 | Manager CLI/API (JSONL) | 🕓 |
+| **G5** | **Manager CLI/API** (`dhopm-cli`) — stdio JSONL + TCP `:7079`, config 3 cấp, lưu/`fetch` | ✅ **M0–M4** (12 test) — `run-be.bat` |
 | G7 | Utility-FIMI reader (planned, D42) | 🕓 |
 
 Mỗi giai đoạn có plan riêng tại `docs/phases/` trước khi code (D26). Xem `docs/DECISIONS.md` cho quyết định kiến trúc và roadmap `docs/plans/00-OVERALL-PLAN.md` §8.

@@ -18,6 +18,7 @@
         <module>dhopm-v2-minocc</module>
         <module>dhopm-v3-optimized</module>
         <module>dhopm-bench</module>
+        <module>dhopm-cli</module>
     </modules>
 
     <properties>

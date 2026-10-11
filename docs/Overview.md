@@ -80,7 +80,9 @@ Ba hệ quả đã chứng minh trong `00-OVERALL-PLAN.md` §2:
 | **G1 V1 Standard** | ✅ **Xong** — đóng băng làm oracle (32 test V1) |
 | **G2 V2 MinOcc/Window** | ✅ **Xong** — 18 test V2; tổng **105 test xanh** (55 common + 32 V1 + 18 V2) |
 | **G3 V3 Optimized** | ✅ **Xong** — 16 test V3; toàn reactor **121 test xanh**; `minOcc=0 ≡ V1/V2`, `minOcc>0 ≡ V2` bit-for-bit. **Tối ưu rõ rệt** sau khi sửa lỗi nhân bản tác vụ mining: **nhanh hơn V2 2.3–28×**, heap thấp hơn. Chi tiết: `reports/G3-V3-OPTIMIZED-BAOCAO.md` |
-| G4–G7 | 🕓 |
+| **G4 V4 Extreme** | 🕓 **Hoãn — sau G5** (`D45`) |
+| **G5 Manager CLI/API** | 🕔 **Phạm vi đã chốt** (`D45`–`D49`) — chưa code; transport **TCP `7079`** + stdio, CLI Hybrid, `isLog`/`fetch`, config 3 cấp. Kế hoạch: `phases/P5-G5.md`; contract: `plans/08-FE-CONTRACT.md` |
+| G6–G7 | 🕓 |
 
 ## 7. Bản đồ nhanh "muốn biết gì thì đọc gì"
 
