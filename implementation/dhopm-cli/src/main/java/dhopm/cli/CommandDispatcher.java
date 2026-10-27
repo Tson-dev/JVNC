@@ -113,6 +113,7 @@ public final class CommandDispatcher {
         if (cmd == null || cmd.isBlank()) {
             throw ManagerException.missing("cmd");
         }
+        ServeLog.processing("cmd=" + cmd);
         return switch (cmd) {
             case "hello" -> hello(p);
             case "info", "version" -> info(p);
@@ -308,7 +309,12 @@ public final class CommandDispatcher {
                 throw new ManagerException(Codes.UNKNOWN_VERSION, "unknown version: " + version);
             }
         }
+        ServeLog.processing("mine dataset=" + p.str("dataset") + " versions=" + versions
+                + " partial=" + partial + " f=" + f + " minOcc=" + minOcc
+                + " parts=" + Math.max(1, p.intVal("parts", 1)));
         DatasetLoader.Loaded loaded = DatasetLoader.load(p.requiredStr("dataset"), p.str("format"), p.longVal("limit", 0));
+        ServeLog.processing("dataset loaded: " + loaded.label() + " (" + loaded.transactions().size()
+                + " tx, lastTid=" + loaded.lastTid() + ")");
         return new MinePrep(config, versions, loaded.transactions(), Math.max(1, p.intVal("parts", 1)),
                 asMapOrNull(p.raw().get("versionConfig")));
     }
@@ -507,7 +513,7 @@ public final class CommandDispatcher {
         String fileID = p.requiredStr("file");
         Map<String, Object> m = envelope(p);
         m.put("fileID", fileID);
-        m.put("path", results.pathOf(fileID).toString());
+        //m.put("path", results.pathOf(fileID).toString());
         m.put("content", results.read(fileID));
         return m;
     }

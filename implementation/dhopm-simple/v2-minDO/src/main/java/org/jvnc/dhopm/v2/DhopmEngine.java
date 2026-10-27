@@ -1,0 +1,339 @@
+package org.jvnc.dhopm.v2;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+public final class DhopmEngine {
+    private final List<Transaction> transactions = new ArrayList<>();
+    private final Map<String, List<Entry>> globalEntries = new LinkedHashMap<>();
+    private final List<List<String>> pendingTransactions = new ArrayList<>();
+    private final Set<Integer> activeTids = new HashSet<>();
+    private List<Node> reconstructed = List.of();
+    private boolean datasetLoaded;
+    private boolean reconstructedReady;
+    private double lastPartial;
+    private double lastFactor;
+    private double lastMinSup;
+
+    public int lastTid() {
+        return transactions.size();
+    }
+
+    public int transactionCount() {
+        return transactions.size();
+    }
+
+    public int itemCount() {
+        return globalEntries.size();
+    }
+
+    public int pendingCount() {
+        return pendingTransactions.size();
+    }
+
+    public void addPendingTransaction(String transaction) {
+        String trimmed = transaction == null ? "" : transaction.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("Transaction cannot be empty.");
+        }
+        List<String> items = List.of(trimmed.split("\\s+"));
+        if (items.stream().distinct().count() != items.size()) {
+            throw new IllegalArgumentException("A transaction cannot contain duplicate items.");
+        }
+        pendingTransactions.add(items);
+        reconstructedReady = false;
+    }
+
+    public PhaseResult construct(PathInput input) throws Exception {
+        long started = System.nanoTime();
+        int addedFromDataset = 0;
+        int addedFromQueue = 0;
+        if (!datasetLoaded) {
+            List<List<String>> initial = DatasetReader.read(input.path(), input.limit());
+            for (List<String> items : initial) {
+                appendTransaction(items);
+                addedFromDataset++;
+            }
+            for (List<String> items : pendingTransactions) {
+                appendTransaction(items);
+                addedFromQueue++;
+            }
+            pendingTransactions.clear();
+            if (addedFromDataset == 0 && addedFromQueue == 0) {
+                throw new IllegalStateException("The selected dataset contains no transactions.");
+            }
+            datasetLoaded = true;
+            transactions.forEach(transaction -> activeTids.add(transaction.tid()));
+        } else if (!pendingTransactions.isEmpty()) {
+            for (List<String> items : pendingTransactions) {
+                appendTransaction(items);
+                addedFromQueue++;
+            }
+            pendingTransactions.clear();
+            transactions.forEach(transaction -> activeTids.add(transaction.tid()));
+        } else {
+            throw new IllegalStateException("No new dataset or queued transactions to construct.");
+        }
+        reconstructedReady = false;
+        Snapshot snapshot = snapshot();
+        return new PhaseResult("CONSTRUCTION", System.nanoTime() - started,
+                addedFromDataset, addedFromQueue, 0, snapshot, List.of(), List.of());
+    }
+
+    public PhaseResult reconstruct(double partial, double factor, double minDo, double epsilon) {
+        validateUnitInterval(partial, "partial");
+        if (!Double.isFinite(factor) || factor <= 0 || factor > 1) {
+            throw new IllegalArgumentException("factor must be finite and in (0, 1].");
+        }
+        if (!Double.isFinite(minDo) || minDo < 0) {
+            throw new IllegalArgumentException("minDO must be finite and non-negative.");
+        }
+        if (!Double.isFinite(epsilon) || epsilon < 0) {
+            throw new IllegalArgumentException("epsilon must be finite and non-negative.");
+        }
+        long started = System.nanoTime();
+        int tl = lastTid();
+        activeTids.clear();
+        if (minDo == 0.0) {
+            transactions.forEach(transaction -> activeTids.add(transaction.tid()));
+        } else {
+            double effectiveThreshold = minDo + epsilon;
+            for (Transaction transaction : transactions) {
+                double directFullTransactionDo = directFullTransactionDo(transaction, factor, tl);
+                if (directFullTransactionDo > effectiveThreshold) {
+                    activeTids.add(transaction.tid());
+                }
+            }
+        }
+        int removedTransactions = transactions.size() - activeTids.size();
+        double minSup = partial * activeTids.size();
+        List<Node> nodes = new ArrayList<>();
+        List<DuboObservation> observations = new ArrayList<>();
+        for (Map.Entry<String, List<Entry>> item : globalEntries.entrySet()) {
+            List<Entry> activeEntries = item.getValue().stream()
+                    .filter(entry -> activeTids.contains(entry.tid))
+                    .toList();
+            if (activeEntries.isEmpty()) {
+                continue;
+            }
+            Node node = new Node(item.getKey(), 1, activeEntries);
+            node.recompute(factor, tl);
+            nodes.add(node);
+        }
+        nodes.sort(Comparator.comparingInt(Node::support).thenComparing(n -> n.item));
+        reconstructed = List.copyOf(nodes);
+        reconstructedReady = true;
+        lastPartial = partial;
+        lastFactor = factor;
+        lastMinSup = minSup;
+        Parameters parameters = new Parameters(partial, factor, minDo, epsilon, 0);
+        return new PhaseResult("RECONSTRUCTION", System.nanoTime() - started, 0, 0, removedTransactions,
+                snapshot(), observations, List.of(), parameters, minSup);
+    }
+
+    public PhaseResult mine() {
+        if (!reconstructedReady) {
+            throw new IllegalStateException("Run Reconstruction before Mining.");
+        }
+        long started = System.nanoTime();
+        double minSup = lastMinSup;
+        List<PatternResult> patterns = new ArrayList<>();
+        List<DuboObservation> observations = new ArrayList<>();
+        mineRecursive(reconstructed, 0, List.of(), minSup, lastFactor, lastTid(),
+                patterns, observations);
+        return new PhaseResult("MINING", System.nanoTime() - started, 0, 0, 0,
+                snapshot(), observations, patterns, new Parameters(lastPartial, lastFactor, 0, 0, 0), minSup);
+    }
+
+    public Snapshot snapshot() {
+        List<TransactionSnapshot> snapshot = transactions.stream()
+                .map(t -> new TransactionSnapshot(t.tid(), t.items(), activeTids.contains(t.tid())))
+                .toList();
+        return new Snapshot(lastTid(), transactions.size(), activeTids.size(),
+                globalEntries.size(), snapshot);
+    }
+
+    private void appendTransaction(List<String> items) {
+        int tid = transactions.size() + 1;
+        Transaction transaction = new Transaction(tid, items);
+        transactions.add(transaction);
+        for (String item : items) {
+            globalEntries.computeIfAbsent(item, ignored -> new ArrayList<>())
+                    .add(new Entry(tid, items.size()));
+        }
+    }
+
+    private static double directFullTransactionDo(Transaction transaction, double factor, int tl) {
+        int transactionLength = transaction.items().size();
+        if (transactionLength == 0) {
+            throw new IllegalStateException("Cannot calculate DO(T,T) for an empty transaction.");
+        }
+        double fullPatternRatio = (double) transactionLength / transactionLength;
+        return fullPatternRatio * Math.pow(factor, tl - transaction.tid());
+    }
+
+    private void mineRecursive(List<Node> list, int start, List<String> prefix,
+                               double minSup, double factor, int tl,
+                               List<PatternResult> patterns, List<DuboObservation> observations) {
+        for (int i = start; i < list.size(); i++) {
+            Node node = list.get(i);
+            if (node.support() < minSup) {
+                continue;
+            }
+            List<String> items = new ArrayList<>(prefix);
+            items.add(node.item);
+            String key = canonicalKey(items);
+            if (node.dampedOccupancy >= minSup) {
+                patterns.add(new PatternResult(key, List.copyOf(items), node.support(),
+                        node.dampedOccupancy));
+            }
+            double dubo = node.dubo(factor, tl);
+            observations.add(new DuboObservation(key, 0.0, dubo, node.support(),
+                    node.dampedOccupancy, minSup, dubo >= minSup));
+            if (dubo < minSup) {
+                continue;
+            }
+            List<Node> next = new ArrayList<>();
+            for (int j = i + 1; j < list.size(); j++) {
+                Node partner = list.get(j);
+                if (partner.support() < minSup) {
+                    continue;
+                }
+                Node combined = intersect(node, partner, factor, tl);
+                if (combined.support() > 0) {
+                    next.add(combined);
+                }
+            }
+            if (!next.isEmpty()) {
+                mineRecursive(next, 0, items, minSup, factor, tl, patterns, observations);
+            }
+        }
+    }
+
+    private static Node intersect(Node left, Node right, double factor, int tl) {
+        List<Entry> entries = new ArrayList<>();
+        int i = 0;
+        int j = 0;
+        while (i < left.entries.size() && j < right.entries.size()) {
+            Entry a = left.entries.get(i);
+            Entry b = right.entries.get(j);
+            if (a.tid < b.tid) {
+                i++;
+            } else if (a.tid > b.tid) {
+                j++;
+            } else {
+                entries.add(a);
+                i++;
+                j++;
+            }
+        }
+        Node combined = new Node(right.item, left.patternLength + 1, entries);
+        combined.recompute(factor, tl);
+        return combined;
+    }
+
+    private static String canonicalKey(List<String> items) {
+        return items.stream().sorted().reduce((a, b) -> a + "," + b).orElse("");
+    }
+
+    private static void validateUnitInterval(double value, String name) {
+        if (!Double.isFinite(value) || value < 0 || value > 1) {
+            throw new IllegalArgumentException(name + " must be finite and in [0, 1].");
+        }
+    }
+
+    private record Entry(int tid, int transactionLength) {
+    }
+
+    private static final class Node {
+        private final String item;
+        private final int patternLength;
+        private final List<Entry> entries;
+        private double dampedOccupancy;
+
+        private Node(String item, int patternLength, List<Entry> entries) {
+            this.item = item;
+            this.patternLength = patternLength;
+            this.entries = List.copyOf(entries);
+        }
+
+        private int support() {
+            return entries.size();
+        }
+
+        private void recompute(double factor, int tl) {
+            dampedOccupancy = 0.0;
+            for (Entry entry : entries) {
+                dampedOccupancy += ((double) patternLength / entry.transactionLength)
+                        * Math.pow(factor, tl - entry.tid);
+            }
+        }
+
+        private double dubo(double factor, int tl) {
+            TreeMap<Integer, LengthGroup> groups = new TreeMap<>();
+            for (Entry entry : entries) {
+                LengthGroup group = groups.computeIfAbsent(entry.transactionLength,
+                        ignored -> new LengthGroup());
+                group.count++;
+                group.latestTid = Math.max(group.latestTid, entry.tid);
+            }
+            List<Map.Entry<Integer, LengthGroup>> byLength = new ArrayList<>(groups.entrySet());
+            double maximum = 0.0;
+            for (int k = 0; k < byLength.size(); k++) {
+                int length = byLength.get(k).getKey();
+                double sum = 0.0;
+                for (int i = k; i < byLength.size(); i++) {
+                    sum += byLength.get(i).getValue().count
+                            * ((double) length / byLength.get(i).getKey());
+                }
+                double value = Math.pow(factor, tl - byLength.get(k).getValue().latestTid) * sum;
+                maximum = Math.max(maximum, value);
+            }
+            return maximum;
+        }
+    }
+
+    private static final class LengthGroup {
+        private int count;
+        private int latestTid;
+    }
+
+    public record PathInput(java.nio.file.Path path, int limit) {
+    }
+
+    public record Parameters(double partial, double factor, double minDo, double epsilon, int limit) {
+    }
+
+    public record TransactionSnapshot(int tid, List<String> items, boolean active) {
+    }
+
+    public record Snapshot(int lastTid, int transactionCount, int activeTransactionCount, int itemCount,
+                           List<TransactionSnapshot> transactions) {
+    }
+
+    public record PatternResult(String key, List<String> items, int support, double dampedOccupancy) {
+    }
+
+    public record DuboObservation(String patternKey, double before, double value, int support,
+                                  double dampedOccupancy, double minSup, boolean passesMinSup) {
+    }
+
+    public record PhaseResult(String phase, long elapsedNanos, int datasetTransactionsAdded,
+                              int queuedTransactionsAdded, int evictedTransactions,
+                              Snapshot snapshot, List<DuboObservation> dubo,
+                              List<PatternResult> patterns, Parameters parameters, double minSup) {
+        public PhaseResult(String phase, long elapsedNanos, int datasetTransactionsAdded,
+                           int queuedTransactionsAdded, int evictedTransactions,
+                           Snapshot snapshot, List<DuboObservation> dubo,
+                           List<PatternResult> patterns) {
+            this(phase, elapsedNanos, datasetTransactionsAdded, queuedTransactionsAdded,
+                    evictedTransactions, snapshot, dubo, patterns, null, 0);
+        }
+    }
+}

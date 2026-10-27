@@ -23,15 +23,25 @@ public final class ServeLoop {
         this.dispatcher = dispatcher;
     }
 
-    /** Reads requests until EOF. */
+    /** Reads requests until EOF (no request/response logging). */
     public void run(InputStream in, PrintStream out) {
+        run(in, out, null);
+    }
+
+    /** Reads requests until EOF, logging req/proc/res through {@code log} (when non-null). */
+    public void run(InputStream in, PrintStream out, ServeLog log) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) {
                     continue;
                 }
-                out.println(handleLine(line, out));
+                ServeLog previous = ServeLog.bind(log);
+                try {
+                    out.println(handleLine(line, out));
+                } finally {
+                    ServeLog.unbind(previous);
+                }
                 out.flush();
             }
         } catch (IOException e) {
@@ -49,6 +59,15 @@ public final class ServeLoop {
      * returning the final response line.
      */
     public String handleLine(String line, PrintStream out) {
+        if (line != null && !line.isBlank()) {
+            ServeLog.request(line);
+        }
+        String response = dispatch(line, out);
+        ServeLog.response(response);
+        return response;
+    }
+
+    private String dispatch(String line, PrintStream out) {
         long id = 0;
         try {
             Object parsed = Json.parse(line);
@@ -64,8 +83,10 @@ public final class ServeLoop {
             }
             CommandDispatcher.EventSink sink = out == null ? event -> {
             } : event -> {
-                out.println(Json.stringify(event));
+                String json = Json.stringify(event);
+                out.println(json);
                 out.flush();
+                ServeLog.event(json);
             };
             return Json.stringify(dispatcher.dispatch(request, sink));
         } catch (ManagerException e) {

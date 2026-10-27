@@ -62,6 +62,9 @@ public final class MiningRunner {
     private Job runOne(String version, MiningConfig config, List<Transaction> transactions, int parts,
                        MiningProgressListener progressListener) {
         Engine engine = registry.create(version, config);
+        String label = registry.displayName(version);
+        ServeLog.processing(version + " -> " + label + ": engine start (tx=" + transactions.size()
+                + ", parts=" + parts + ", workers=" + config.workers() + ")");
         TimingRecorder rec = new TimingRecorder();
         if (engine instanceof PhaseAwareEngine pa) {
             pa.setPhaseListener(rec);
@@ -93,6 +96,8 @@ public final class MiningRunner {
             WindowInfo window = captured[0] != null ? captured[0] : paperWindow(config, loaded, tl);
             List<ParameterValidator.Issue> issues = ParameterValidator.validate(config, tl);
             Map<String, Object> engineStats = structuralStats(engine);
+            ServeLog.processing(version + " -> " + label + ": engine done (" + result.patterns().size()
+                    + " patterns, " + result.totalTransactions() + " tx, " + rec.totalMs() + " ms)");
             return new Job(version, registry.displayName(version), result, window, issues, rec, engineStats);
         } finally {
             if (engine instanceof AutoCloseable closeable) {

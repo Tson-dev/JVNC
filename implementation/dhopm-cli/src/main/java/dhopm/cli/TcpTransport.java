@@ -29,26 +29,30 @@ public final class TcpTransport {
     }
 
     /** Blocks forever, accepting connections and serving each on its own thread. */
-    public void serveForever(PrintStream log) throws IOException {
+    public void serveForever(PrintStream logStream) throws IOException {
         try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getByName("0.0.0.0"))) {
-            log.println("dhopm-cli serve: listening on tcp/" + port + " (protocol " + CommandDispatcher.PROTOCOL + ")");
+            logStream.println("dhopm-cli serve: listening on tcp/" + port + " (protocol " + CommandDispatcher.PROTOCOL + ")");
             ExecutorService pool = Executors.newCachedThreadPool();
             while (!server.isClosed()) {
                 Socket socket = server.accept();
-                pool.submit(() -> serveConnection(socket, log));
+                pool.submit(() -> serveConnection(socket, logStream));
             }
         }
     }
 
-    private void serveConnection(Socket socket, PrintStream log) {
+    private void serveConnection(Socket socket, PrintStream logStream) {
+        ServeLog log = ServeLog.open(logStream, String.valueOf(socket.getRemoteSocketAddress()));
+        ServeLog previous = ServeLog.bind(log);
         try (socket;
              InputStream in = socket.getInputStream();
              PrintStream out = new PrintStream(socket.getOutputStream(), true, StandardCharsets.UTF_8)) {
-            log.println("dhopm-cli serve: client connected " + socket.getRemoteSocketAddress());
-            new ServeLoop(dispatcher).run(in, out);
-            log.println("dhopm-cli serve: client disconnected " + socket.getRemoteSocketAddress());
+            ServeLog.info("client connected " + socket.getRemoteSocketAddress());
+            new ServeLoop(dispatcher).run(in, out, log);
+            ServeLog.info("client disconnected " + socket.getRemoteSocketAddress());
         } catch (IOException e) {
-            log.println("dhopm-cli serve: connection error: " + e.getMessage());
+            ServeLog.error("connection error: " + e.getMessage());
+        } finally {
+            ServeLog.unbind(previous);
         }
     }
 }

@@ -88,7 +88,8 @@ public final class ManagerMain {
         if (tcp) {
             new TcpTransport(dispatcher, port).serveForever(out);
         } else {
-            loop.run(System.in, out);
+            // stdio: the protocol owns stdout, so logs go to stderr
+            loop.run(System.in, out, ServeLog.open(System.err, "stdio"));
         }
     }
 

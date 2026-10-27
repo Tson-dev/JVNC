@@ -43,7 +43,7 @@ public final class DatasetLoader {
         if (limit < 0) {
             throw ManagerException.invalid("limit must be a non-negative integer, got: " + limit);
         }
-        Path path = Paths.get(dataset);
+        Path path = resolveDataset(dataset);
         if (!Files.exists(path)) {
             throw new ManagerException(Codes.DATASET_NOT_FOUND, "dataset not found: " + path);
         }
@@ -65,6 +65,49 @@ public final class DatasetLoader {
         } catch (IOException e) {
             throw new ManagerException(Codes.DATASET_NOT_FOUND, "failed to read dataset: " + e.getMessage());
         }
+    }
+
+    /**
+     * Định vị file dataset. Theo contract (08-FE-CONTRACT.md) FE chỉ gửi TÊN
+     * dataset (vd {@code "retail.dat"}) — BE tự tìm trong thư mục dataset của
+     * mình. Vẫn chấp nhận đường dẫn cũ (relative {@code "dataset/retail.dat"}
+     * hay absolute) để tương thích ngược với CLI/benchmark.
+     */
+    private static Path resolveDataset(String dataset) {
+        Path direct = Paths.get(dataset);
+        if (Files.exists(direct)) {
+            return direct;
+        }
+        if (!direct.isAbsolute() && !hasSeparator(dataset)) {
+            for (String base : datasetDirCandidates()) {
+                Path inDir = Paths.get(base, dataset);
+                if (Files.exists(inDir)) {
+                    return inDir;
+                }
+            }
+        }
+        return direct;
+    }
+
+    /**
+     * Thư mục chứa dataset của BE. Ưu tiên system property
+     * {@code dhopm.dataset.dir}, nếu thiếu thử theo {@code user.dir} (chạy từ
+     * gốc repo hoặc từ module dhopm-cli).
+     */
+    private static List<String> datasetDirCandidates() {
+        List<String> dirs = new ArrayList<>();
+        String prop = System.getProperty("dhopm.dataset.dir");
+        if (prop != null && !prop.isBlank()) {
+            dirs.add(prop);
+        }
+        Path userDir = Paths.get(System.getProperty("user.dir"));
+        dirs.add(userDir.resolve("dataset").toString());
+        dirs.add(userDir.resolve("..").resolve("dataset").toString());
+        return dirs;
+    }
+
+    private static boolean hasSeparator(String s) {
+        return s.indexOf('/') >= 0 || s.indexOf('\\') >= 0;
     }
 
     private static Loaded read(InputStream in, String format, long limit, String label) {

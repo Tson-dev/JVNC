@@ -18,3 +18,5 @@ Desktop.ini
 
 # Logs / temp
 *.log
+
+/implementation/dhopm-simple/logs/

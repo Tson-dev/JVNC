@@ -1,0 +1,14 @@
+# Progress details — persistent compute worker and RSS
+
+- Scope: `D:\JVNC\JVNC\implementation\dhopm-simple\v3-window` only. No changes were made to V1 or other projects.
+- Preserved V3 `DhopmEngine` phase APIs and windowing implementation; the new worker invokes V3 construction with dataset/path, transaction limit, factor, minDO, and epsilon.
+- Added a JSON-lines child-JVM client/worker, per-phase worker metrics, Windows working-set sampling through a custom JNA Psapi mapping, and EngineWindow queue/epoch/shutdown integration.
+- Updated `LogSession` additively: existing fields (`heapUsedBytes`, `heapPeakBytes`, `workerCpuNanos`, `rssBytes`, `rssStatus`, and phase/session fields) remain, with start/end/peak RSS, sample metadata/source/status, worker PID/startup, heap start/end/peak, and GC delta added.
+- Added focused worker integration coverage for distinct PID, persistent window state through Reconstruction/Mining, queued transaction construction, epoch reset, compatible/new log fields, and Windows RSS availability; non-Windows RSS is asserted as unsupported.
+- Dependency/runtime: Maven project compiles with Java release 25; added JNA/JNA-platform 5.16.0 and enabled native access for the worker and tests to avoid the JNA restricted-native-access warning.
+- Validation command: `mvn test`, working directory `D:\JVNC\JVNC\implementation\dhopm-simple\v3-window`. Final result: PASS, 10 tests, 0 failures, 0 errors, 0 skipped; no compiler/test warnings in the final run. Whole-solution build: NOT RUN (the requested scope is the standalone V3 Maven project).
+- An initial `mvn test` from `D:\JVNC` failed because that directory has no `pom.xml`; reran from the V3 project directory successfully.
+- No workflow folder, `task.md`, `scenario-instructions.md`, task ID, or scenario skill root was supplied. The Execution scenario-extension lookup returned “No scenario extensions apply”; the scenario Execution stage and Breakdown Hints could not be loaded.
+- Change list: `pom.xml`; `src/main/java/org/jvnc/dhopm/v3/ComputeWorkerClient.java` (new); `ComputeWorkerMain.java` (new); `WindowsRssSampler.java` (new); `EngineWindow.java`; `LogSession.java`; `src/test/java/org/jvnc/dhopm/v3/ComputeWorkerClientTest.java` (new); this progress file.
+- Decomposition assessment: this is one coherent V3 runtime architecture feature across the worker protocol, sampler, window integration, metrics, and focused integration test. No TaskBreaker was used. Scenario-specific hint files were unavailable because no scenario skill root was provided.
+- Integrity review is blocked: the required `IntegrityReviewer` dispatch failed before starting with `Model 'gpt-5.6-sol' is not available`; no reviewer verdict or review record was returned. Review record path requested: `D:\JVNC\JVNC\implementation\dhopm-simple\v3-window\review.md`.
